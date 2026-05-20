@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Xóa người dùng{% endblock %}
+{% block page_title %}Xóa người dùng{% endblock %}
+{% block content %}
+<div class="form-card" style="max-width:480px">
+    <div style="text-align:center;padding:20px 0">
+        <div style="font-size:48px">🗑️</div>
+        <h3 style="margin:12px 0 8px">Xác nhận xóa</h3>
+        <p style="color:#64748b">Bạn có chắc muốn xóa người dùng <strong>{{ user.username }}</strong>?</p>
+    </div>
+    <form method="post" class="d-flex gap-2 justify-content-between">
+        {% csrf_token %}
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary w-100">Hủy</a>
+        <button type="submit" class="btn btn-danger w-100">Xóa</button>
+    </form>
+</div>
+{% endblock %}

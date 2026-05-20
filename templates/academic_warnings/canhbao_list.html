@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}Cảnh báo học vụ{% endblock %}
+{% block page_title %}Cảnh báo học vụ{% endblock %}
+{% block topbar_actions %}
+{% if request.user.is_admin or request.user.is_giaovu %}
+<a href="{% url 'academic_warnings:kiem_tra' %}" class="btn btn-warning btn-sm">🔍 Kiểm tra cảnh báo</a>
+{% endif %}
+<a href="{% url 'academic_warnings:export' %}" class="btn btn-secondary btn-sm">📤 Export</a>
+{% endblock %}
+{% block content %}
+<!-- Filter -->
+<div class="card mb-3">
+    <div class="card-body" style="padding:14px 20px">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+            {% if not request.user.is_sinhvien %}
+            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control" style="max-width:200px">
+            {% endif %}
+            <select name="hoc_ky" class="form-select" style="max-width:180px">
+                <option value="">-- Tất cả học kỳ --</option>
+                {% for hk in hockys %}<option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">🔍 Lọc</button>
+            <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><span class="card-title">Tổng: {{ canh_baos|length }} cảnh báo</span></div>
+    <div class="card-body" style="padding:0">
+        <div class="table-responsive">
+        <table class="data-table">
+            <thead><tr>
+                <th>MSSV</th><th>Họ tên</th><th>Ngành</th><th>Học kỳ</th>
+                <th>Mức cảnh báo</th><th>Lần thứ</th><th>Lý do</th><th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th>
+            </tr></thead>
+            <tbody>
+            {% for cb in canh_baos %}
+            <tr>
+                <td><strong>{{ cb.sinh_vien.mssv }}</strong></td>
+                <td>{{ cb.sinh_vien.ho_ten }}</td>
+                <td>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</td>
+                <td>{{ cb.hoc_ky }}</td>
+                <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
+                <td style="text-align:center"><strong>{{ cb.so_lan_canh_bao }}</strong></td>
+                <td style="max-width:200px;font-size:12px">{{ cb.ly_do|truncatechars:60 }}</td>
+                <td>
+                    {% if cb.trang_thai == 'moi' %}<span class="badge badge-danger">Mới</span>
+                    {% elif cb.trang_thai == 'da_thong_bao' %}<span class="badge badge-warning">Đã TB</span>
+                    {% elif cb.trang_thai == 'dang_xu_ly' %}<span class="badge badge-info">Đang XL</span>
+                    {% else %}<span class="badge badge-success">Đã XL</span>{% endif %}
+                </td>
+                <td style="font-size:12px">{{ cb.ngay_tao|date:"d/m/Y" }}</td>                <td>
+                    <a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}" class="btn btn-sm btn-secondary">👁️</a>
+                    {% if not request.user.is_sinhvien %}
+                    <a href="{% url 'academic_warnings:canhbao_update' cb.pk %}" class="btn btn-sm btn-warning">✏️</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:32px">✅ Không có cảnh báo học vụ</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

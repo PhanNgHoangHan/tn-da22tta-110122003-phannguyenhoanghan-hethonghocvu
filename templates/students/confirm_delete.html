@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block page_title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="form-card" style="max-width:440px;text-align:center">
+    <div style="font-size:48px;margin-bottom:12px">🗑️</div>
+    <h3 style="margin:0 0 8px">Xác nhận xóa</h3>
+    <p style="color:#64748b;margin-bottom:24px">Bạn có chắc muốn xóa <strong>{{ obj }}</strong>?</p>
+    <form method="post" class="d-flex gap-2">
+        {% csrf_token %}
+        <a href="javascript:history.back()" class="btn btn-secondary w-100">Hủy</a>
+        <button type="submit" class="btn btn-danger w-100">Xóa</button>
+    </form>
+</div>
+{% endblock %}

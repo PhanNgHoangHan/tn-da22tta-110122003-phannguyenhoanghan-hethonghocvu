@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Cố vấn học tập{% endblock %}
+{% block page_title %}Dashboard Cố vấn học tập{% endblock %}
+{% block content %}
+
+<!-- Stat cards -->
+<div class="grid-4 mb-4">
+    <div class="stat-card">
+        <div class="stat-icon blue">👨‍🎓</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ total_sv }}</div>
+            <div class="stat-label">Sinh viên phụ trách</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ sv_dang_hoc }}</div>
+            <div class="stat-label">Đang học bình thường</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon yellow">⚠️</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ sv_canh_bao }}</div>
+            <div class="stat-label">Đang cảnh báo</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">🚨</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ canh_baos_moi|length }}</div>
+            <div class="stat-label">Cảnh báo mới chưa xử lý</div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2 mb-4">
+    <!-- Biểu đồ cảnh báo theo mức -->
+    <div class="card">
+        <div class="card-header"><span class="card-title">📊 Phân bố cảnh báo học vụ</span></div>
+        <div class="card-body">
+            <div class="chart-container" style="height:220px">
+                <canvas id="cbChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Phân bố trạng thái sinh viên -->
+    <div class="card">
+        <div class="card-header"><span class="card-title">🎓 Trạng thái sinh viên</span></div>
+        <div class="card-body">
+            <div class="chart-container" style="height:220px">
+                <canvas id="ttChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2 mb-4">
+    <!-- Cảnh báo mới -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">🚨 Cảnh báo mới cần xử lý</span>
+            <a href="{% url 'academic_warnings:canhbao_list' %}?trang_thai=moi" class="btn btn-sm btn-secondary">Xem tất cả</a>
+        </div>
+        <div class="card-body" style="padding:0">
+            <table class="data-table">
+                <thead><tr><th>MSSV</th><th>Họ tên</th><th>Mức</th><th>HK</th><th></th></tr></thead>
+                <tbody>
+                {% for cb in canh_baos_moi %}
+                <tr>
+                    <td>{{ cb.sinh_vien.mssv }}</td>
+                    <td>{{ cb.sinh_vien.ho_ten }}</td>
+                    <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
+                    <td>{{ cb.hoc_ky }}</td>
+                    <td><a href="{% url 'academic_warnings:canhbao_update' cb.pk %}" class="btn btn-sm btn-warning">Xử lý</a></td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">✅ Không có cảnh báo mới</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Sinh viên GPA thấp -->
+    <div class="card">
+        <div class="card-header">
+            <span class="card-title">📉 Sinh viên GPA thấp (< 2.0)</span>
+            {% if hoc_ky_hien_tai %}<span style="font-size:12px;color:#64748b">{{ hoc_ky_hien_tai }}</span>{% endif %}
+        </div>
+        <div class="card-body" style="padding:0">
+            <table class="data-table">
+                <thead><tr><th>MSSV</th><th>Họ tên</th><th>GPA HK</th><th>TC</th></tr></thead>
+                <tbody>
+                {% for item in sv_gpa_thap %}
+                <tr>
+                    <td><a href="{% url 'students:sinhvien_detail' item.sv.pk %}">{{ item.sv.mssv }}</a></td>
+                    <td>{{ item.sv.ho_ten }}</td>
+                    <td><strong style="color:{% if item.gpa < 1.0 %}#dc2626{% elif item.gpa < 1.5 %}#d97706{% else %}#374151{% endif %}">{{ item.gpa }}</strong></td>
+                    <td>{{ item.tc }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">✅ Không có sinh viên GPA thấp</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const cbLabels = {{ cb_labels|safe }};
+const cbData = {{ cb_data|safe }};
+const ttLabels = {{ tt_labels|safe }};
+const ttData = {{ tt_data|safe }};
+
+// Biểu đồ cảnh báo - dùng key mới: canh_bao / buoc_thoi_hoc
+const cbColorMap = {'canh_bao': '#f59e0b', 'buoc_thoi_hoc': '#dc2626'};
+const cbLabelMap = {'canh_bao': 'Cảnh báo HV', 'buoc_thoi_hoc': 'Buộc thôi học'};
+
+if (cbData.length > 0 && cbData.some(v => v > 0)) {
+    new Chart(document.getElementById('cbChart'), {
+        type: 'doughnut',
+        data: {
+            labels: cbLabels.map(l => cbLabelMap[l] || l),
+            datasets: [{ data: cbData, backgroundColor: cbLabels.map(l => cbColorMap[l] || '#94a3b8'), borderWidth: 2 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+    });
+} else {
+    document.getElementById('cbChart').parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">✅ Chưa có cảnh báo</div>';
+}
+
+const ttColors = {'dang_hoc': '#16a34a', 'canh_bao': '#f59e0b', 'dinh_chi': '#ef4444', 'tot_nghiep': '#2563eb', 'thoi_hoc': '#94a3b8'};
+const ttLabelMap = {'dang_hoc':'Đang học','canh_bao':'Cảnh báo','dinh_chi':'Đình chỉ','tot_nghiep':'Tốt nghiệp','thoi_hoc':'Thôi học'};
+
+if (ttData.length > 0) {
+    new Chart(document.getElementById('ttChart'), {
+        type: 'pie',
+        data: {
+            labels: ttLabels.map(l => ttLabelMap[l] || l),
+            datasets: [{ data: ttData, backgroundColor: ttLabels.map(l => ttColors[l] || '#94a3b8'), borderWidth: 2 }]
+        },
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
+    });
+}
+</script>
+{% endblock %}

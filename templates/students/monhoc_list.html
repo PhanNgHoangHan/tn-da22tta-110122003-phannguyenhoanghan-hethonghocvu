@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block title %}Danh sách môn học{% endblock %}
+{% block page_title %}Danh sách môn học{% endblock %}
+{% block topbar_actions %}
+{% if request.user.is_giaovu or request.user.is_admin %}
+<a href="{% url 'students:monhoc_create' %}" class="btn btn-primary btn-sm">➕ Thêm môn học</a>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="card mb-3">
+    <div class="card-body" style="padding:14px 20px">
+        <form method="get" class="d-flex gap-2">
+            <input type="text" name="q" value="{{ q }}" placeholder="Tìm mã, tên môn..." class="form-control" style="max-width:280px">
+            <button type="submit" class="btn btn-primary btn-sm">🔍</button>
+            <a href="{% url 'students:monhoc_list' %}" class="btn btn-secondary btn-sm">✕</a>
+        </form>
+    </div>
+</div>
+<div class="card">
+    <div class="card-body" style="padding:0">
+        <table class="data-table">
+            <thead><tr><th>Mã MH</th><th>Tên môn học</th><th>Số TC</th><th>Loại</th><th>Thao tác</th></tr></thead>
+            <tbody>
+            {% for mh in monhocs %}
+            <tr>
+                <td><strong>{{ mh.ma_mh }}</strong></td>
+                <td>{{ mh.ten_mh }}</td>
+                <td>{{ mh.so_tc }}</td>
+                <td><span class="badge badge-info">{{ mh.get_loai_display }}</span></td>
+                <td>
+                    {% if request.user.is_giaovu or request.user.is_admin %}
+                    <a href="{% url 'students:monhoc_edit' mh.pk %}" class="btn btn-sm btn-warning">✏️</a>
+                    <a href="{% url 'students:monhoc_delete' mh.pk %}" class="btn btn-sm btn-danger">🗑️</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:32px">Chưa có môn học</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

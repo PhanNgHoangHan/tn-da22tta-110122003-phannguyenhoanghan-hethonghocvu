@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Quản lý người dùng{% endblock %}
+{% block page_title %}Quản lý người dùng{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'accounts:user_create' %}" class="btn btn-primary">➕ Thêm người dùng</a>
+{% endblock %}
+{% block content %}
+<div class="card">
+    <div class="card-body" style="padding:0">
+        <div class="table-responsive">
+        <table class="data-table">
+            <thead><tr>
+                <th>Tên đăng nhập</th><th>Họ tên</th><th>Email</th><th>Vai trò</th><th>Trạng thái</th><th>Thao tác</th>
+            </tr></thead>
+            <tbody>
+            {% for u in users %}
+            <tr>
+                <td><strong>{{ u.username }}</strong></td>
+                <td>{{ u.full_name|default:'-' }}</td>
+                <td>{{ u.email|default:'-' }}</td>
+                <td><span class="badge badge-info">{{ u.get_role_display }}</span></td>
+                <td>{% if u.is_active %}<span class="badge badge-success">Hoạt động</span>{% else %}<span class="badge badge-secondary">Khóa</span>{% endif %}</td>
+                <td>
+                    <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-sm btn-warning">✏️</a>
+                    {% if u != request.user %}
+                    <a href="{% url 'accounts:user_delete' u.pk %}" class="btn btn-sm btn-danger">🗑️</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:32px">Chưa có người dùng</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

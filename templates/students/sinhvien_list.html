@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+{% block title %}Danh sách sinh viên{% endblock %}
+{% block page_title %}Danh sách sinh viên{% endblock %}
+{% block topbar_actions %}
+{% if not request.user.is_sinhvien %}
+<a href="{% url 'students:sinhvien_create' %}" class="btn btn-primary btn-sm">➕ Thêm</a>
+<a href="{% url 'students:import_sinhvien' %}" class="btn btn-secondary btn-sm">📥 Import</a>
+<a href="{% url 'students:export_sinhvien' %}" class="btn btn-secondary btn-sm">📤 Export</a>
+{% endif %}
+{% endblock %}
+{% block content %}
+<!-- Filter -->
+<div class="card mb-3">
+    <div class="card-body" style="padding:14px 20px">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
+            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control" style="max-width:220px">
+            <select name="trang_thai" class="form-select" style="max-width:180px">
+                <option value="">-- Trạng thái --</option>
+                <option value="dang_hoc" {% if trang_thai == 'dang_hoc' %}selected{% endif %}>Đang học</option>
+                <option value="canh_bao" {% if trang_thai == 'canh_bao' %}selected{% endif %}>Cảnh báo</option>
+                <option value="dinh_chi" {% if trang_thai == 'dinh_chi' %}selected{% endif %}>Đình chỉ</option>
+                <option value="tot_nghiep" {% if trang_thai == 'tot_nghiep' %}selected{% endif %}>Tốt nghiệp</option>
+            </select>
+            <select name="nganh" class="form-select" style="max-width:200px">
+                <option value="">-- Ngành --</option>
+                {% for n in nganhs %}<option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">🔍 Lọc</button>
+            <a href="{% url 'students:sinhvien_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
+        </form>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">Tổng: {{ sinhviens|length }} sinh viên</span>
+    </div>
+    <div class="card-body" style="padding:0">
+        <div class="table-responsive">
+        <table class="data-table">
+            <thead><tr>
+                <th>MSSV</th><th>Họ tên</th><th>Ngành</th><th>Khóa</th><th>Lớp</th><th>Cố vấn</th><th>Trạng thái</th><th>Thao tác</th>
+            </tr></thead>
+            <tbody>
+            {% for sv in sinhviens %}
+            <tr>
+                <td><strong>{{ sv.mssv }}</strong></td>
+                <td>{{ sv.ho_ten }}</td>
+                <td>{{ sv.nganh.ten_nganh|default:'-' }}</td>
+                <td>{{ sv.khoa }}</td>
+                <td>{{ sv.lop.ten_lop|default:'-' }}</td>
+                <td>{{ sv.lop.covan.full_name|default:sv.covan.full_name|default:'-' }}</td>
+                <td>
+                    {% if sv.trang_thai == 'dang_hoc' %}<span class="badge badge-success">Đang học</span>
+                    {% elif sv.trang_thai == 'canh_bao' %}<span class="badge badge-warning">Cảnh báo</span>
+                    {% elif sv.trang_thai == 'dinh_chi' %}<span class="badge badge-danger">Đình chỉ</span>
+                    {% elif sv.trang_thai == 'tot_nghiep' %}<span class="badge badge-info">Tốt nghiệp</span>
+                    {% else %}<span class="badge badge-secondary">{{ sv.get_trang_thai_display }}</span>{% endif %}
+                </td>
+                <td>
+                    <a href="{% url 'students:sinhvien_detail' sv.pk %}" class="btn btn-sm btn-secondary">👁️</a>
+                    {% if not request.user.is_sinhvien %}
+                    <a href="{% url 'students:sinhvien_edit' sv.pk %}" class="btn btn-sm btn-warning">✏️</a>
+                    {% if request.user.is_giaovu or request.user.is_admin %}
+                    <a href="{% url 'students:sinhvien_delete' sv.pk %}" class="btn btn-sm btn-danger">🗑️</a>
+                    {% endif %}
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:32px">Không có sinh viên nào</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,265 @@
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse, JsonResponse
+from django.db.models import Count, Avg, Q
+from io import BytesIO
+import json
+
+from students.models import SinhVien, HocKy, MonHoc, Nganh
+from results.models import KetQuaHocTap
+from results.utils import (tinh_dtbctl, tinh_dtbchk,
+                            thong_ke_hocky, get_phan_phoi_diem)
+from academic_warnings.models import CanhBaoHocVu
+
+
+@login_required
+def index(request):
+    """Điều hướng đến dashboard phù hợp theo vai trò."""
+    role = request.user.role
+    if role == 'sinhvien':
+        return dashboard_sinhvien(request)
+    elif role == 'covan':
+        return dashboard_covan(request)
+    elif role in ('giaovu', 'admin'):
+        return dashboard_giaovu(request)
+    return render(request, 'dashboard/index.html')
+
+
+@login_required
+def dashboard_sinhvien(request):
+    """Dashboard dành cho sinh viên."""
+    sv = None
+    try:
+        sv = request.user.sinh_vien
+    except Exception:
+        pass
+
+    # Thử tìm qua SinhVien.objects nếu reverse relation chưa cache
+    if sv is None:
+        from students.models import SinhVien as SV
+        sv = SV.objects.filter(user=request.user).first()
+
+    if sv is None:
+        return render(request, 'dashboard/no_profile.html')
+
+    hoc_ky_hien_tai = HocKy.objects.filter(la_hien_tai=True).first()
+    dtbctl, dtbctl_4, tc_tl, tc_da_hoc = tinh_dtbctl(sv)
+
+    # ĐTBCHK từng học kỳ
+    hockys = HocKy.objects.filter(ket_qua__sinh_vien=sv).distinct().order_by('nam_hoc', 'ky')
+    gpa_labels = []
+    gpa_data = []
+    for hk in hockys:
+        dtbchk_10, dtbchk_4, tc, _ = tinh_dtbchk(sv, hk)
+        if tc > 0:
+            gpa_labels.append(str(hk))
+            gpa_data.append(dtbchk_10)
+
+    # Thống kê học kỳ hiện tại
+    thong_ke = None
+    if hoc_ky_hien_tai:
+        thong_ke = thong_ke_hocky(sv, hoc_ky_hien_tai)
+
+    # Phân phối điểm
+    phan_phoi = get_phan_phoi_diem(sinh_vien=sv)
+
+    # Cảnh báo
+    canh_baos = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao')[:5]
+
+    # Kết quả gần nhất
+    ket_qua_gan = KetQuaHocTap.objects.filter(sinh_vien=sv).select_related(
+        'mon_hoc', 'hoc_ky').order_by('-hoc_ky__nam_hoc', '-hoc_ky__ky')[:10]
+
+    context = {
+        'sv': sv,
+        'dtbctl': dtbctl,
+        'dtbctl_4': dtbctl_4,
+        'tc_tl': tc_tl,
+        'tc_da_hoc': tc_da_hoc,
+        'hoc_ky_hien_tai': hoc_ky_hien_tai,
+        'thong_ke': thong_ke,
+        'canh_baos': canh_baos,
+        'ket_qua_gan': ket_qua_gan,
+        'gpa_labels': json.dumps(gpa_labels),
+        'gpa_data': json.dumps(gpa_data),
+        'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
+        'phan_phoi_data': json.dumps(list(phan_phoi.values())),
+    }
+    return render(request, 'dashboard/dashboard_sv.html', context)
+
+
+@login_required
+def dashboard_covan(request):
+    """Dashboard dành cho cố vấn học tập."""
+    svs = SinhVien.objects.filter(lop__covan=request.user)
+    total_sv = svs.count()
+    sv_canh_bao = svs.filter(trang_thai='canh_bao').count()
+    sv_dang_hoc = svs.filter(trang_thai='dang_hoc').count()
+
+    # Cảnh báo mới
+    canh_baos_moi = CanhBaoHocVu.objects.filter(
+        sinh_vien__lop__covan=request.user, trang_thai='moi'
+    ).select_related('sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
+
+    # Thống kê theo mức cảnh báo
+    cb_stats = CanhBaoHocVu.objects.filter(sinh_vien__lop__covan=request.user).values(
+        'muc_canh_bao').annotate(count=Count('id'))
+    cb_labels = [d['muc_canh_bao'] for d in cb_stats]
+    cb_data = [d['count'] for d in cb_stats]
+
+    # Danh sách sinh viên có GPA thấp
+    hoc_ky_hien_tai = HocKy.objects.filter(la_hien_tai=True).first()
+    sv_gpa_thap = []
+    if hoc_ky_hien_tai:
+        for sv in svs.filter(trang_thai='dang_hoc'):
+            dtbchk_10, dtbchk_4, tc, _ = tinh_dtbchk(sv, hoc_ky_hien_tai)
+            if tc > 0 and dtbchk_10 < 2.0:
+                sv_gpa_thap.append({'sv': sv, 'gpa': dtbchk_10, 'tc': tc})
+        sv_gpa_thap.sort(key=lambda x: x['gpa'])
+
+    # Phân bố trạng thái sinh viên
+    trang_thai_stats = svs.values('trang_thai').annotate(count=Count('id'))
+
+    context = {
+        'total_sv': total_sv,
+        'sv_canh_bao': sv_canh_bao,
+        'sv_dang_hoc': sv_dang_hoc,
+        'canh_baos_moi': canh_baos_moi,
+        'sv_gpa_thap': sv_gpa_thap[:10],
+        'hoc_ky_hien_tai': hoc_ky_hien_tai,
+        'cb_labels': json.dumps([d['muc_canh_bao'] for d in cb_stats]),
+        'cb_data': json.dumps([d['count'] for d in cb_stats]),
+        'tt_labels': json.dumps([d['trang_thai'] for d in trang_thai_stats]),
+        'tt_data': json.dumps([d['count'] for d in trang_thai_stats]),
+    }
+    return render(request, 'dashboard/dashboard_covan.html', context)
+
+
+@login_required
+def dashboard_giaovu(request):
+    """Dashboard dành cho giáo vụ và admin."""
+    total_sv = SinhVien.objects.count()
+    sv_canh_bao = SinhVien.objects.filter(trang_thai='canh_bao').count()
+    sv_dang_hoc = SinhVien.objects.filter(trang_thai='dang_hoc').count()
+    total_mon = MonHoc.objects.count()
+    total_canh_bao = CanhBaoHocVu.objects.filter(trang_thai='moi', muc_canh_bao='canh_bao').count()
+
+    # Thống kê cảnh báo theo học kỳ
+    hockys = HocKy.objects.order_by('nam_hoc', 'ky')[:8]
+    cb_hk_labels = [str(hk) for hk in hockys]
+    cb_hk_data = [CanhBaoHocVu.objects.filter(hoc_ky=hk).count() for hk in hockys]
+
+    # Phân bố sinh viên theo ngành
+    nganh_stats = SinhVien.objects.values('nganh__ten_nganh').annotate(count=Count('id')).order_by('-count')[:8]
+
+    # Phân bố trạng thái
+    tt_stats = SinhVien.objects.values('trang_thai').annotate(count=Count('id'))
+
+    # Cảnh báo mới nhất
+    canh_baos_moi = CanhBaoHocVu.objects.filter(trang_thai='moi').select_related(
+        'sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
+
+    # GPA trung bình theo học kỳ (tính từ dữ liệu)
+    hoc_ky_hien_tai = HocKy.objects.filter(la_hien_tai=True).first()
+    phan_phoi = get_phan_phoi_diem(hoc_ky=hoc_ky_hien_tai) if hoc_ky_hien_tai else {}
+
+    context = {
+        'total_sv': total_sv,
+        'sv_canh_bao': sv_canh_bao,
+        'sv_dang_hoc': sv_dang_hoc,
+        'total_mon': total_mon,
+        'total_canh_bao': total_canh_bao,
+        'canh_baos_moi': canh_baos_moi,
+        'hoc_ky_hien_tai': hoc_ky_hien_tai,
+        'cb_hk_labels': json.dumps(cb_hk_labels),
+        'cb_hk_data': json.dumps(cb_hk_data),
+        'nganh_labels': json.dumps([d['nganh__ten_nganh'] or 'Chưa xác định' for d in nganh_stats]),
+        'nganh_data': json.dumps([d['count'] for d in nganh_stats]),
+        'tt_labels': json.dumps([d['trang_thai'] for d in tt_stats]),
+        'tt_data': json.dumps([d['count'] for d in tt_stats]),
+        'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
+        'phan_phoi_data': json.dumps(list(phan_phoi.values())),
+    }
+    return render(request, 'dashboard/dashboard_giaovu.html', context)
+
+
+@login_required
+def bao_cao(request):
+    """Trang báo cáo & thống kê."""
+    hockys = HocKy.objects.all()
+    nganhs = Nganh.objects.all()
+    hk_id = request.GET.get('hoc_ky', '')
+    nganh_id = request.GET.get('nganh', '')
+
+    qs_sv = SinhVien.objects.all()
+    qs_kq = KetQuaHocTap.objects.select_related('sinh_vien', 'mon_hoc', 'hoc_ky')
+    qs_cb = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky')
+
+    if request.user.is_covan:
+        qs_sv = qs_sv.filter(covan=request.user)
+        qs_kq = qs_kq.filter(sinh_vien__covan=request.user)
+        qs_cb = qs_cb.filter(sinh_vien__covan=request.user)
+
+    if hk_id:
+        qs_kq = qs_kq.filter(hoc_ky_id=hk_id)
+        qs_cb = qs_cb.filter(hoc_ky_id=hk_id)
+    if nganh_id:
+        qs_sv = qs_sv.filter(nganh_id=nganh_id)
+        qs_kq = qs_kq.filter(sinh_vien__nganh_id=nganh_id)
+
+    phan_phoi = get_phan_phoi_diem()
+    if hk_id:
+        hk = HocKy.objects.filter(pk=hk_id).first()
+        phan_phoi = get_phan_phoi_diem(hoc_ky=hk)
+
+    # Thống kê tổng hợp
+    stats = {
+        'total_sv': qs_sv.count(),
+        'sv_dang_hoc': qs_sv.filter(trang_thai='dang_hoc').count(),
+        'sv_canh_bao': qs_cb.filter(muc_canh_bao='canh_bao').count(),
+        'sv_canh_bao_2': qs_cb.filter(muc_canh_bao='canh_bao', so_lan_canh_bao=2).count(),
+        'sv_canh_bao_3': qs_cb.filter(muc_canh_bao='buoc_thoi_hoc').count(),
+        'total_kq': qs_kq.count(),
+        'kq_dat': sum(1 for kq in qs_kq if kq.dat),
+    }
+
+    context = {
+        'hockys': hockys, 'nganhs': nganhs,
+        'hk_id': hk_id, 'nganh_id': nganh_id,
+        'stats': stats,
+        'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
+        'phan_phoi_data': json.dumps(list(phan_phoi.values())),
+    }
+    return render(request, 'dashboard/bao_cao.html', context)
+
+
+@login_required
+def export_bao_cao_excel(request):
+    """Xuất báo cáo tổng hợp ra Excel."""
+    wb = openpyxl.Workbook() if False else __import__('openpyxl').Workbook()
+    ws = wb.active
+    ws.title = 'Báo cáo tổng hợp'
+
+    ws.append(['BÁO CÁO KẾT QUẢ HỌC TẬP'])
+    ws.append([])
+    ws.append(['MSSV', 'Họ tên', 'Ngành', 'GPA tích lũy', 'TC tích lũy', 'Trạng thái', 'Cảnh báo HV'])
+
+    svs = SinhVien.objects.select_related('nganh').all()
+    if request.user.is_covan:
+        svs = svs.filter(covan=request.user)
+
+    for sv in svs:
+        dtbctl, dtbctl_4, tc, _ = tinh_dtbctl(sv)
+        cb = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao').first()
+        ws.append([
+            sv.mssv, sv.ho_ten,
+            sv.nganh.ten_nganh if sv.nganh else '',
+            dtbctl, tc,
+            sv.get_trang_thai_display(),
+            cb.get_muc_canh_bao_display() if cb else 'Không'
+        ])
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="bao_cao_hoc_tap.xlsx"'
+    wb.save(response)
+    return response

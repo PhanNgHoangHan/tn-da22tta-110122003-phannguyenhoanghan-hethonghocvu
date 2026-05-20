@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Dashboard Học Vụ{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/main.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+{% if user.is_authenticated %}
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+        <img src="/static/img/logo_tvu.png" alt="TVU Logo"
+             style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0">
+        <div>
+            <div class="brand-text">Đại học Trà Vinh</div>
+            <div class="brand-sub">Dashboard Học Vụ</div>
+        </div>
+    </div>
+
+    <div class="sidebar-user">
+        <div class="avatar">{{ user.full_name|first|upper|default:user.username|first|upper }}</div>
+        <div class="user-info">
+            <div class="user-name">{{ user.full_name|default:user.username }}</div>
+            <div class="user-role">{{ user.get_role_display }}</div>
+        </div>
+    </div>
+
+    <nav class="sidebar-nav">
+        <div class="nav-section-title">Tổng quan</div>
+        <a href="{% url 'dashboard:index' %}" class="{% if request.resolver_match.namespace == 'dashboard' and request.resolver_match.url_name == 'index' %}active{% endif %}">
+            <span class="nav-icon">🏠</span> Dashboard
+        </a>
+
+        {% if not user.is_sinhvien %}
+        <div class="nav-section-title">Quản lý</div>
+        <a href="{% url 'students:sinhvien_list' %}" class="{% if request.resolver_match.namespace == 'students' and 'sinhvien' in request.resolver_match.url_name %}active{% endif %}">
+            <span class="nav-icon">👨‍🎓</span> Sinh viên
+        </a>
+        {% if user.is_giaovu or user.is_admin %}
+        <a href="{% url 'students:monhoc_list' %}" class="{% if 'monhoc' in request.resolver_match.url_name %}active{% endif %}">
+            <span class="nav-icon">📚</span> Môn học
+        </a>
+        <a href="{% url 'students:hocky_list' %}" class="{% if 'hocky' in request.resolver_match.url_name %}active{% endif %}">
+            <span class="nav-icon">📅</span> Học kỳ
+        </a>
+        {% endif %}
+        {% else %}
+        <div class="nav-section-title">Thông tin</div>
+        {% endif %}
+
+        <div class="nav-section-title">Học tập</div>
+        <a href="{% url 'results:ketqua_list' %}" class="{% if request.resolver_match.namespace == 'results' %}active{% endif %}">
+            <span class="nav-icon">📝</span> Kết quả học tập
+        </a>
+        <a href="{% url 'academic_warnings:canhbao_list' %}" class="{% if request.resolver_match.namespace == 'academic_warnings' %}active{% endif %}">
+            <span class="nav-icon">⚠️</span> Cảnh báo học vụ
+        </a>
+
+        {% if not user.is_sinhvien %}
+        <div class="nav-section-title">Báo cáo</div>
+        <a href="{% url 'dashboard:bao_cao' %}" class="{% if request.resolver_match.url_name == 'bao_cao' %}active{% endif %}">
+            <span class="nav-icon">📊</span> Báo cáo & Thống kê
+        </a>
+        {% if user.is_giaovu or user.is_admin %}
+        <a href="{% url 'results:import_diem' %}">
+            <span class="nav-icon">📥</span> Import điểm
+        </a>
+        <a href="{% url 'students:import_sinhvien' %}">
+            <span class="nav-icon">📥</span> Import sinh viên
+        </a>
+        {% endif %}
+        {% endif %}
+
+        {% if user.is_admin %}
+        <div class="nav-section-title">Hệ thống</div>
+        <a href="{% url 'accounts:user_list' %}">
+            <span class="nav-icon">👥</span> Quản lý người dùng
+        </a>
+        <a href="{% url 'academic_warnings:kiem_tra' %}">
+            <span class="nav-icon">🔍</span> Kiểm tra cảnh báo
+        </a>
+        <a href="/admin/">
+            <span class="nav-icon">⚙️</span> Admin panel
+        </a>
+        {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+        <a href="{% url 'accounts:profile' %}">👤 Hồ sơ cá nhân</a>
+        <a href="{% url 'accounts:logout' %}" style="color:#ef4444">🚪 Đăng xuất</a>
+    </div>
+</aside>
+
+<!-- MAIN -->
+<div class="main-wrapper">
+    <header class="topbar">
+        <button onclick="document.getElementById('sidebar').classList.toggle('open')"
+                style="background:none;border:none;font-size:20px;cursor:pointer;display:none" id="menu-btn">☰</button>
+        <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
+        <div class="topbar-actions">
+            {% block topbar_actions %}{% endblock %}
+        </div>
+    </header>
+
+    <main class="page-content">
+        {% if messages %}
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }}">
+            <span>{% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' or msg.tags == 'danger' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
+            <span>{{ msg }}</span>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+{% else %}
+{% block auth_content %}{% endblock %}
+{% endif %}
+
+<script>
+// Responsive sidebar
+const menuBtn = document.getElementById('menu-btn');
+if (window.innerWidth <= 768 && menuBtn) menuBtn.style.display = 'block';
+window.addEventListener('resize', () => {
+    if (menuBtn) menuBtn.style.display = window.innerWidth <= 768 ? 'block' : 'none';
+});
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

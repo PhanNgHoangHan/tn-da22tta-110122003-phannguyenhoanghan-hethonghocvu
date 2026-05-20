@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Chi tiết cảnh báo{% endblock %}
+{% block page_title %}Chi tiết cảnh báo học vụ{% endblock %}
+{% block content %}
+<div class="form-card" style="max-width:600px">
+    <div class="warning-banner {% if cb.muc_canh_bao == 'muc3' %}danger{% endif %}">
+        <div class="warn-icon">⚠️</div>
+        <div class="warn-text">
+            <div class="warn-title">{{ cb.get_muc_canh_bao_display }}</div>
+            <div class="warn-desc">{{ cb.ly_do }}</div>
+        </div>
+    </div>
+    <table style="width:100%;font-size:14px">
+        <tr><td style="color:#64748b;padding:8px 0;width:140px">Sinh viên</td><td><strong>{{ cb.sinh_vien.mssv }} - {{ cb.sinh_vien.ho_ten }}</strong></td></tr>
+        <tr><td style="color:#64748b;padding:8px 0">Ngành</td><td>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</td></tr>
+        <tr><td style="color:#64748b;padding:8px 0">Học kỳ</td><td>{{ cb.hoc_ky }}</td></tr>
+        <tr><td style="color:#64748b;padding:8px 0">Mức cảnh báo</td><td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td></tr>
+        <tr><td style="color:#64748b;padding:8px 0">Trạng thái</td><td>{{ cb.get_trang_thai_display }}</td></tr>
+        <tr><td style="color:#64748b;padding:8px 0">Ngày tạo</td><td>{{ cb.ngay_tao|date:"d/m/Y H:i" }}</td></tr>
+        {% if cb.ghi_chu %}<tr><td style="color:#64748b;padding:8px 0">Ghi chú</td><td>{{ cb.ghi_chu }}</td></tr>{% endif %}
+    </table>
+    <div class="d-flex gap-2 mt-4">
+        {% if not request.user.is_sinhvien %}
+        <a href="{% url 'academic_warnings:canhbao_update' cb.pk %}" class="btn btn-warning">✏️ Cập nhật</a>
+        {% endif %}
+        <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary">← Quay lại</a>
+    </div>
+</div>
+{% endblock %}
