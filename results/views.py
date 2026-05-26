@@ -42,10 +42,10 @@ def ketqua_list(request):
     from collections import OrderedDict
     from results.utils import la_dat, diem_he4 as _diem_he4
 
-    # --- Lọc cơ bản ---
+    # --- Lọc cơ bản: chỉ lấy lần học 1 để hiển thị ---
     qs = KetQuaHocTap.objects.select_related(
         'sinh_vien', 'sinh_vien__lop', 'mon_hoc', 'hoc_ky'
-    ).all()
+    ).filter(lan_hoc=1)
 
     if request.user.is_sinhvien:
         sv = SinhVien.objects.filter(user=request.user).first()

@@ -3,37 +3,6 @@
 {% block page_title %}Dashboard Cố vấn học tập{% endblock %}
 {% block content %}
 
-<!-- Stat cards -->
-<div class="grid-4 mb-4">
-    <div class="stat-card">
-        <div class="stat-icon blue">👨‍🎓</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ total_sv }}</div>
-            <div class="stat-label">Sinh viên phụ trách</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green">✅</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ sv_dang_hoc }}</div>
-            <div class="stat-label">Đang học bình thường</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon yellow">⚠️</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ sv_canh_bao }}</div>
-            <div class="stat-label">Đang cảnh báo</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon red">🚨</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ canh_baos_moi|length }}</div>
-            <div class="stat-label">Cảnh báo mới chưa xử lý</div>
-        </div>
-    </div>
-</div>
 
 <div class="grid-2 mb-4">
     <!-- Biểu đồ cảnh báo theo mức -->

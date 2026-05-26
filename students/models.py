@@ -80,6 +80,12 @@ class SinhVien(models.Model):
             return self.lop.covan
         return self.covan
 
+    @property
+    def ten_covan(self):
+        """Tên cố vấn, trả về '-' nếu không có."""
+        cv = self.covan_hien_tai
+        return cv.full_name if cv else '-'
+
 
 class HocKy(models.Model):
     KY_CHOICES = [('1', 'Học kỳ 1'), ('2', 'Học kỳ 2'), ('3', 'Học kỳ hè')]

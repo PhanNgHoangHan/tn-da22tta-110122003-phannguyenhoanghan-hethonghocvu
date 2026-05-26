@@ -81,12 +81,12 @@ def tinh_dtbchk(sinh_vien, hoc_ky):
     """
     Tính ĐTBCHK hệ 10 = Σ(điểm_i × TC_i) / Σ(TC_i).
     Tính ĐTBCHK hệ 4  = Σ(diem_he4_i × TC_i) / Σ(TC_i).
-    Bao gồm TẤT CẢ học phần trong HK (kể cả F).
+    Chỉ tính lần học đầu tiên (lan_hoc=1) trong HK - đúng quy chế.
     Trả về (dtbchk_10, dtbchk_4, tong_tc_hk, tc_dat_hk).
     """
     from results.models import KetQuaHocTap
     ket_qua = KetQuaHocTap.objects.filter(
-        sinh_vien=sinh_vien, hoc_ky=hoc_ky, diem_tk__isnull=False
+        sinh_vien=sinh_vien, hoc_ky=hoc_ky, diem_tk__isnull=False, lan_hoc=1
     ).select_related('mon_hoc')
 
     tong_tc = 0

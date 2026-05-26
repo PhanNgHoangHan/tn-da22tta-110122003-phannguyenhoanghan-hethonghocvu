@@ -49,7 +49,7 @@
                 <td>{{ sv.nganh.ten_nganh|default:'-' }}</td>
                 <td>{{ sv.khoa }}</td>
                 <td>{{ sv.lop.ten_lop|default:'-' }}</td>
-                <td>{{ sv.lop.covan.full_name|default:sv.covan.full_name|default:'-' }}</td>
+                <td>{{ sv.ten_covan }}</td>
                 <td>
                     {% if sv.trang_thai == 'dang_hoc' %}<span class="badge badge-success">Đang học</span>
                     {% elif sv.trang_thai == 'canh_bao' %}<span class="badge badge-warning">Cảnh báo</span>

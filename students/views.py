@@ -64,14 +64,77 @@ def sinhvien_detail(request, pk):
 
     from results.models import KetQuaHocTap
     from academic_warnings.models import CanhBaoHocVu
-    from results.utils import tinh_dtbchk, tinh_dtbctl, la_dat, diem_he4
+    from results.utils import tinh_dtbctl, la_dat, diem_he4
     from collections import OrderedDict
 
     canh_baos = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao')
 
-    # Tổ chức kết quả theo năm học → học kỳ
-    ket_qua_all = KetQuaHocTap.objects.filter(sinh_vien=sv).select_related(
-        'mon_hoc', 'hoc_ky').order_by('hoc_ky__nam_hoc', 'hoc_ky__ky', 'mon_hoc__ten_mh')
+    # Chỉ lấy lần học 1 để hiển thị (lần 2 chỉ dùng cho tích lũy)
+    # Sắp xếp: năm giảm dần, HK giảm dần, môn tăng dần
+    ket_qua_all = KetQuaHocTap.objects.filter(
+        sinh_vien=sv, lan_hoc=1
+    ).select_related('mon_hoc', 'hoc_ky').order_by(
+        '-hoc_ky__nam_hoc', '-hoc_ky__ky', 'mon_hoc__ten_mh'
+    )
+
+    ket_qua_theo_nam = OrderedDict()
+    for kq in ket_qua_all:
+        nam = kq.hoc_ky.nam_hoc
+        hk_ten = str(kq.hoc_ky)
+        if nam not in ket_qua_theo_nam:
+            ket_qua_theo_nam[nam] = OrderedDict()
+        if hk_ten not in ket_qua_theo_nam[nam]:
+            ket_qua_theo_nam[nam][hk_ten] = {
+                'ket_qua': [], 'tong_mon': 0,
+                'tc_dang_ky': 0, 'tc_dat': 0,
+                'dtbchk': 0.0, 'dtbchk_4': 0.0
+            }
+        ket_qua_theo_nam[nam][hk_ten]['ket_qua'].append(kq)
+
+    # Tính thống kê từng HK (chỉ dựa trên lan_hoc=1)
+    for nam, hk_dict in ket_qua_theo_nam.items():
+        for hk_ten, data in hk_dict.items():
+            kqs = data['ket_qua']
+            data['tong_mon'] = len(kqs)
+            data['tc_dang_ky'] = sum(k.mon_hoc.so_tc for k in kqs)
+            data['tc_dat'] = sum(k.mon_hoc.so_tc for k in kqs if la_dat(k.diem_tk))
+            tong_tc = sum(k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
+            tong_d10 = sum(k.diem_tk * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
+            tong_d4  = sum((diem_he4(k.diem_tk) or 0) * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
+            data['dtbchk']   = round(tong_d10 / tong_tc, 2) if tong_tc > 0 else 0.0
+            data['dtbchk_4'] = round(tong_d4  / tong_tc, 2) if tong_tc > 0 else 0.0
+
+    # Tổng kết từng năm = TB cộng ĐTBCHK các HK trong năm
+    dtb_theo_nam = {}
+    for nam_hoc, hk_dict in ket_qua_theo_nam.items():
+        hk_d10 = [d['dtbchk']   for d in hk_dict.values() if d['dtbchk']   > 0]
+        hk_d4  = [d['dtbchk_4'] for d in hk_dict.values() if d['dtbchk_4'] > 0]
+        dtb_theo_nam[nam_hoc] = {
+            'dtb_10': round(sum(hk_d10) / len(hk_d10), 2) if hk_d10 else 0.0,
+            'dtb_4':  round(sum(hk_d4)  / len(hk_d4),  2) if hk_d4  else 0.0,
+            'tc_dang_ky': sum(d['tc_dang_ky'] for d in hk_dict.values()),
+            'tc_dat':     sum(d['tc_dat']     for d in hk_dict.values()),
+        }
+
+    # Tổng kết toàn khóa = TB cộng ĐTBCHK tất cả HK
+    all_d10 = [d['dtbchk']   for nam in ket_qua_theo_nam.values() for d in nam.values() if d['dtbchk']   > 0]
+    all_d4  = [d['dtbchk_4'] for nam in ket_qua_theo_nam.values() for d in nam.values() if d['dtbchk_4'] > 0]
+    toan_khoa_dtb_10 = round(sum(all_d10) / len(all_d10), 2) if all_d10 else 0.0
+    toan_khoa_dtb_4  = round(sum(all_d4)  / len(all_d4),  2) if all_d4  else 0.0
+
+    # TC tích lũy (tính từ điểm tốt nhất mỗi môn, kể cả lần 2)
+    dtbctl_10, dtbctl_4, tc_tl, tc_da_hoc = tinh_dtbctl(sv)
+
+    return render(request, 'students/sinhvien_detail.html', {
+        'sv': sv,
+        'canh_baos': canh_baos,
+        'ket_qua_theo_nam': ket_qua_theo_nam,
+        'dtb_theo_nam': dtb_theo_nam,
+        'toan_khoa_dtb_10': toan_khoa_dtb_10,
+        'toan_khoa_dtb_4': toan_khoa_dtb_4,
+        'tc_tl': tc_tl,
+        'tc_da_hoc': tc_da_hoc,
+    })
 
     ket_qua_theo_nam = OrderedDict()
     for kq in ket_qua_all:
@@ -258,54 +321,67 @@ def import_sinhvien(request):
             if name.endswith('.csv'):
                 decoded = f.read().decode('utf-8-sig')
                 reader = csv.DictReader(io.StringIO(decoded))
-                for row in reader:
-                    try:
-                        nganh, _ = Nganh.objects.get_or_create(
-                            ma_nganh=row.get('ma_nganh', 'KT'),
-                            defaults={'ten_nganh': row.get('ten_nganh', 'Chưa xác định')}
-                        )
-                        SinhVien.objects.update_or_create(
-                            mssv=row['mssv'],
-                            defaults={
-                                'ho_ten': row.get('ho_ten', ''),
-                                'email': row.get('email', ''),
-                                'khoa': row.get('khoa', ''),
-                                'lop': row.get('lop', ''),
-                                'nganh': nganh,
-                                'trang_thai': row.get('trang_thai', 'dang_hoc'),
-                            }
-                        )
-                        count += 1
-                    except Exception as e:
-                        errors.append(f"Dòng {row}: {e}")
+                rows_data = list(reader)
             elif name.endswith(('.xlsx', '.xls')):
                 wb = openpyxl.load_workbook(f)
                 ws = wb.active
                 headers = [cell.value for cell in ws[1]]
-                for row in ws.iter_rows(min_row=2, values_only=True):
-                    data = dict(zip(headers, row))
-                    if not data.get('mssv'):
-                        continue
-                    try:
-                        nganh, _ = Nganh.objects.get_or_create(
-                            ma_nganh=data.get('ma_nganh', 'KT'),
-                            defaults={'ten_nganh': data.get('ten_nganh', 'Chưa xác định')}
-                        )
-                        SinhVien.objects.update_or_create(
-                            mssv=str(data['mssv']),
-                            defaults={
-                                'ho_ten': data.get('ho_ten', ''),
-                                'email': data.get('email', '') or '',
-                                'khoa': str(data.get('khoa', '')),
-                                'lop': data.get('lop', '') or '',
-                                'nganh': nganh,
-                                'trang_thai': data.get('trang_thai', 'dang_hoc') or 'dang_hoc',
-                            }
-                        )
-                        count += 1
-                    except Exception as e:
-                        errors.append(f"Dòng {data}: {e}")
-            messages.success(request, f'Import thành công {count} sinh viên.')
+                rows_data = [dict(zip(headers, row)) for row in ws.iter_rows(min_row=2, values_only=True)]
+            else:
+                messages.error(request, 'Định dạng file không hỗ trợ.')
+                return render(request, 'students/import.html', {'form': form, 'title': 'Import sinh viên', 'errors': errors})
+
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+
+            for row in rows_data:
+                mssv = str(row.get('mssv', '')).strip()
+                if not mssv:
+                    continue
+                try:
+                    nganh, _ = Nganh.objects.get_or_create(
+                        ma_nganh=str(row.get('ma_nganh', 'KT')).strip(),
+                        defaults={'ten_nganh': str(row.get('ten_nganh', 'Chưa xác định')).strip()}
+                    )
+                    # Tự tạo tài khoản: username = mssv, password = mssv
+                    sv_user, user_created = User.objects.get_or_create(
+                        username=mssv,
+                        defaults={
+                            'full_name': str(row.get('ho_ten', '')).strip(),
+                            'email': str(row.get('email', '') or '').strip(),
+                            'role': 'sinhvien',
+                        }
+                    )
+                    if user_created:
+                        sv_user.set_password(mssv)
+                        sv_user.save()
+
+                    sv, _ = SinhVien.objects.update_or_create(
+                        mssv=mssv,
+                        defaults={
+                            'ho_ten': str(row.get('ho_ten', '')).strip(),
+                            'email': str(row.get('email', '') or '').strip(),
+                            'khoa': str(row.get('khoa', '') or '').strip(),
+                            'nganh': nganh,
+                            'trang_thai': str(row.get('trang_thai', 'dang_hoc') or 'dang_hoc').strip(),
+                            'user': sv_user,
+                        }
+                    )
+                    # Gán lớp nếu có
+                    ten_lop = str(row.get('lop', '') or '').strip()
+                    if ten_lop:
+                        from students.models import Lop
+                        lop_obj = Lop.objects.filter(ten_lop=ten_lop).first()
+                        if lop_obj:
+                            sv.lop = lop_obj
+                            if lop_obj.covan:
+                                sv.covan = lop_obj.covan
+                            sv.save()
+                    count += 1
+                except Exception as e:
+                    errors.append(f"MSSV {mssv}: {e}")
+
+            messages.success(request, f'Import thành công {count} sinh viên (tài khoản: username=mssv, mật khẩu=mssv).')
             if errors:
                 messages.warning(request, f'{len(errors)} dòng lỗi: ' + '; '.join(errors[:5]))
             return redirect('students:sinhvien_list')
