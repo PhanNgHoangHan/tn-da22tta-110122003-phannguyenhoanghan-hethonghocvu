@@ -16,5 +16,8 @@
         <tr><td style="padding:8px 0;color:#64748b">Số điện thoại</td><td>{{ user.phone|default:'-' }}</td></tr>
         <tr><td style="padding:8px 0;color:#64748b">Vai trò</td><td>{{ user.get_role_display }}</td></tr>
     </table>
+    <div style="margin-top:24px;text-align:center">
+        <a href="{% url 'accounts:change_password' %}" class="btn btn-primary" style="width:100%;justify-content:center">Đổi mật khẩu</a>
+    </div>
 </div>
 {% endblock %}

@@ -7,34 +7,14 @@ from django.http import HttpResponse, JsonResponse
 import openpyxl
 from .models import KetQuaHocTap
 from .forms import KetQuaForm, ImportDiemForm, FilterKetQuaForm
-from .utils import tinh_dtbctl, tinh_dtbchk, get_phan_phoi_diem, kiem_tra_canh_bao, dem_canh_bao_lien_tiep
+from .utils import tinh_dtbctl, tinh_dtbchk, get_phan_phoi_diem, kiem_tra_canh_bao, dem_canh_bao_lien_tiep, xac_dinh_muc_canh_bao, dong_bo_canh_bao_sinh_vien
 from students.models import SinhVien, MonHoc, HocKy
 from academic_warnings.models import CanhBaoHocVu
 
 
 def _xu_ly_canh_bao(sv, hoc_ky):
     """Kiểm tra và lưu cảnh báo học vụ sau khi nhập/sửa điểm."""
-    co_canh_bao, ly_do = kiem_tra_canh_bao(sv, hoc_ky)
-    if not co_canh_bao:
-        return
-    so_lan_lien_tiep = dem_canh_bao_lien_tiep(sv) + 1
-    muc = 'buoc_thoi_hoc' if so_lan_lien_tiep > 2 else 'canh_bao'
-    if so_lan_lien_tiep > 2:
-        ly_do = f'Đã bị cảnh báo {so_lan_lien_tiep - 1} lần liên tiếp. ' + ly_do
-    CanhBaoHocVu.objects.update_or_create(
-        sinh_vien=sv, hoc_ky=hoc_ky,
-        defaults={
-            'muc_canh_bao': muc,
-            'ly_do': ly_do,
-            'trang_thai': 'moi',
-            'so_lan_canh_bao': so_lan_lien_tiep,
-        }
-    )
-    if muc == 'buoc_thoi_hoc':
-        sv.trang_thai = 'dinh_chi'
-    else:
-        sv.trang_thai = 'canh_bao'
-    sv.save()
+    dong_bo_canh_bao_sinh_vien(sv)
 
 
 @login_required
@@ -60,6 +40,19 @@ def ketqua_list(request):
 
     # Lọc điểm hệ 4 (chỉ cho cố vấn/giáo vụ)
     he4_filter = request.GET.get('he4', '')
+
+    # Lọc phân cấp thông minh cho giáo vụ / admin
+    khoa = request.GET.get('khoa', '')
+    nganh_id = request.GET.get('nganh', '')
+    lop_id = request.GET.get('lop', '')
+
+    if not request.user.is_sinhvien and not request.user.is_covan:
+        if khoa:
+            qs = qs.filter(sinh_vien__nganh__khoa=khoa)
+        if nganh_id:
+            qs = qs.filter(sinh_vien__nganh_id=nganh_id)
+        if lop_id:
+            qs = qs.filter(sinh_vien__lop_id=lop_id)
 
     hockys = HocKy.objects.all().order_by('-nam_hoc', '-ky')
 
@@ -193,12 +186,29 @@ def ketqua_list(request):
                 theo_lop[ten_lop].setdefault(nam, OrderedDict())
                 theo_lop[ten_lop][nam][hk_ten] = rows
 
+    # Dữ liệu cho bộ lọc phân cấp (để hiển thị dropdown)
+    from students.models import Nganh
+    nganhs = Nganh.objects.all()
+    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
+    lops = []
+    if nganh_id:
+        from students.models import Lop
+        lops = Lop.objects.filter(nganh_id=nganh_id)
+    if khoa:
+        nganhs = nganhs.filter(khoa=khoa)
+
     return render(request, 'results/ketqua_list.html', {
         'theo_lop': theo_lop,
         'hockys': hockys,
         'hoc_ky_filter': hoc_ky_filter,
         'he4_filter': he4_filter,
         'is_sinhvien': False,
+        'nganhs': nganhs,
+        'khoas': khoas,
+        'lops': lops,
+        'selected_khoa': khoa,
+        'nganh_id': nganh_id,
+        'selected_lop': lop_id,
     })
 
 
@@ -218,7 +228,7 @@ def _nhom_theo_nam_hk(qs):
 
 @login_required
 def ketqua_create(request):
-    if request.user.is_sinhvien:
+    if request.user.is_sinhvien or request.user.is_covan:
         messages.error(request, 'Bạn không có quyền nhập điểm.')
         return redirect('results:ketqua_list')
     form = KetQuaForm(request.POST or None)
@@ -232,7 +242,7 @@ def ketqua_create(request):
 
 @login_required
 def ketqua_edit(request, pk):
-    if request.user.is_sinhvien:
+    if request.user.is_sinhvien or request.user.is_covan:
         messages.error(request, 'Bạn không có quyền sửa điểm.')
         return redirect('results:ketqua_list')
     kq = get_object_or_404(KetQuaHocTap, pk=pk)
@@ -247,12 +257,14 @@ def ketqua_edit(request, pk):
 
 @login_required
 def ketqua_delete(request, pk):
-    if request.user.is_sinhvien:
+    if request.user.is_sinhvien or request.user.is_covan:
         messages.error(request, 'Bạn không có quyền xóa điểm.')
         return redirect('results:ketqua_list')
     kq = get_object_or_404(KetQuaHocTap, pk=pk)
     if request.method == 'POST':
+        sv = kq.sinh_vien
         kq.delete()
+        _xu_ly_canh_bao(sv, None)
         messages.success(request, 'Xóa kết quả thành công.')
         return redirect('results:ketqua_list')
     return render(request, 'students/confirm_delete.html', {'obj': kq, 'title': 'Xóa kết quả'})
@@ -260,7 +272,7 @@ def ketqua_delete(request, pk):
 
 @login_required
 def import_diem(request):
-    if request.user.is_sinhvien:
+    if request.user.is_sinhvien or request.user.is_covan:
         messages.error(request, 'Bạn không có quyền import điểm.')
         return redirect('results:ketqua_list')
     form = ImportDiemForm(request.POST or None, request.FILES or None)
@@ -281,11 +293,17 @@ def import_diem(request):
                 rows = [dict(zip(headers, row)) for row in ws.iter_rows(min_row=2, values_only=True)]
 
             for row in rows:
+                if not row:
+                    continue
+                mssv_val = row.get('mssv')
+                ma_mh_val = row.get('ma_mh')
+                if mssv_val is None or ma_mh_val is None:
+                    continue
+                mssv = str(mssv_val).strip()
+                ma_mh = str(ma_mh_val).strip()
+                if not mssv or mssv.lower() == 'none' or not ma_mh or ma_mh.lower() == 'none':
+                    continue
                 try:
-                    mssv = str(row.get('mssv', '')).strip()
-                    ma_mh = str(row.get('ma_mh', '')).strip()
-                    if not mssv or not ma_mh:
-                        continue
                     sv = SinhVien.objects.get(mssv=mssv)
                     mh = MonHoc.objects.get(ma_mh=ma_mh)
                     diem_qt  = float(row['diem_qt'])  if row.get('diem_qt')  not in (None, '', 'None') else None

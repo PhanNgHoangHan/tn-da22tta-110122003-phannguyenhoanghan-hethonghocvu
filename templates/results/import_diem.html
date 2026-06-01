@@ -4,7 +4,7 @@
 {% block content %}
 <div class="form-card" style="max-width:560px">
     <div class="alert alert-info">
-        <span>ℹ️</span>
+        <span></span>
         <div>
             <strong>Định dạng file:</strong><br>
             Các cột: <code>mssv, ma_mh, diem_qt, diem_thi, diem_tk, lan_hoc</code><br>
@@ -21,13 +21,13 @@
         </div>
         {% endfor %}
         <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">📥 Import điểm</button>
+            <button type="submit" class="btn btn-primary">Import điểm</button>
             <a href="{% url 'results:ketqua_list' %}" class="btn btn-secondary">Hủy</a>
         </div>
     </form>
     {% if errors %}
     <div class="mt-3 alert alert-warning">
-        <strong>⚠️ Một số dòng lỗi:</strong>
+        <strong>Một số dòng lỗi:</strong>
         <ul style="font-size:12px;margin-top:6px">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
     </div>
     {% endif %}

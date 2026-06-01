@@ -5,6 +5,7 @@ from accounts.models import CustomUser
 class Nganh(models.Model):
     ma_nganh = models.CharField(max_length=20, unique=True, verbose_name='Mã ngành')
     ten_nganh = models.CharField(max_length=200, verbose_name='Tên ngành')
+    khoa = models.CharField(max_length=200, default='Khoa Công nghệ thông tin', verbose_name='Khoa')
 
     class Meta:
         verbose_name = 'Ngành học'

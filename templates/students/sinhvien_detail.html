@@ -6,7 +6,7 @@
 <!-- Thông tin + Cảnh báo -->
 <div class="grid-2" style="gap:20px;margin-bottom:20px">
     <div class="card">
-        <div class="card-header"><span class="card-title">👤 Thông tin sinh viên</span></div>
+        <div class="card-header"><span class="card-title">Thông tin sinh viên</span></div>
         <div class="card-body">
             <table style="width:100%;font-size:13.5px">
                 <tr><td style="color:#64748b;padding:6px 0;width:130px">MSSV</td><td><strong>{{ sv.mssv }}</strong></td></tr>
@@ -26,7 +26,7 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><span class="card-title">📊 Tổng kết toàn khóa</span></div>
+        <div class="card-header"><span class="card-title">Tổng kết toàn khóa</span></div>
         <div class="card-body">
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
                 <div style="background:#eff6ff;border-radius:8px;padding:14px;text-align:center">
@@ -46,9 +46,6 @@
                     <div style="font-size:11px;color:#64748b;margin-top:4px">Lần cảnh báo</div>
                 </div>
             </div>
-            <div style="font-size:11px;color:#94a3b8;margin-top:10px;text-align:center">
-                * Điểm tích lũy = trung bình cộng ĐTBCHK tất cả học kỳ
-            </div>
         </div>
     </div>
 </div>
@@ -56,7 +53,7 @@
 <!-- Cảnh báo học vụ -->
 {% if canh_baos %}
 <div class="card mb-4">
-    <div class="card-header"><span class="card-title">⚠️ Cảnh báo học vụ</span></div>
+    <div class="card-header"><span class="card-title">Cảnh báo học vụ</span></div>
     <div class="card-body" style="padding:0">
         <table class="data-table">
             <thead><tr><th>Học kỳ</th><th>Mức</th><th>Lần thứ</th><th>Lý do</th><th>Trạng thái</th></tr></thead>
@@ -81,13 +78,13 @@
 {% for nam_hoc, hk_list in ket_qua_theo_nam.items %}
 <div class="card mb-4">
     <div class="card-header" style="background:#1e293b;color:white;border-radius:12px 12px 0 0">
-        <span class="card-title" style="color:white;font-size:15px">📅 Năm học {{ nam_hoc }}</span>
+        <span class="card-title" style="color:white;font-size:15px">Năm học {{ nam_hoc }}</span>
     </div>
 
     <!-- Tổng kết năm học -->
     {% for nam_key, nam_data in dtb_theo_nam.items %}{% if nam_key == nam_hoc %}
     <div style="background:#f1f5f9;padding:10px 20px;border-bottom:2px solid #e2e8f0;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:12.5px;color:#475569;font-weight:600">📊 Tổng kết năm {{ nam_hoc }}:</span>
+        <span style="font-size:12.5px;color:#475569;font-weight:600">Tổng kết năm {{ nam_hoc }}:</span>
         <span style="font-size:13px">TC đăng ký: <strong>{{ nam_data.tc_dang_ky }}</strong></span>
         <span style="font-size:13px">TC đạt: <strong style="color:#16a34a">{{ nam_data.tc_dat }}</strong></span>
         <span style="font-size:13px">Điểm hệ 10:
@@ -108,7 +105,7 @@
     <div style="border-bottom:1px solid #f1f5f9">
         <!-- Header học kỳ -->
         <div style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <span style="font-weight:600;color:#374151;font-size:13.5px">📚 {{ hk_ten }}</span>
+            <span style="font-weight:600;color:#374151;font-size:13.5px">{{ hk_ten }}</span>
             <div style="display:flex;gap:16px;font-size:12.5px;color:#64748b;flex-wrap:wrap">
                 <span>Số môn: <strong style="color:#1e293b">{{ hk_data.tong_mon }}</strong></span>
                 <span>TC đăng ký: <strong style="color:#1e293b">{{ hk_data.tc_dang_ky }}</strong></span>
@@ -193,7 +190,7 @@
 {% else %}
 <div class="card">
     <div class="card-body" style="text-align:center;padding:40px;color:#94a3b8">
-        <div style="font-size:40px;margin-bottom:10px">📝</div>
+        <div style="font-size:40px;margin-bottom:10px"></div>
         <p>Chưa có kết quả học tập.</p>
     </div>
 </div>

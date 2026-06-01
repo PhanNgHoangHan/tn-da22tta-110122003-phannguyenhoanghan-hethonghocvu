@@ -3,7 +3,7 @@
 {% block page_title %}Quản lý học kỳ{% endblock %}
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'students:hocky_create' %}" class="btn btn-primary btn-sm">➕ Thêm học kỳ</a>
+<a href="{% url 'students:hocky_create' %}" class="btn btn-primary btn-sm">Thêm học kỳ</a>
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -21,7 +21,7 @@
                 <td>{% if hk.la_hien_tai %}<span class="badge badge-success">✓ Hiện tại</span>{% else %}-{% endif %}</td>
                 <td>
                     {% if request.user.is_giaovu or request.user.is_admin %}
-                    <a href="{% url 'students:hocky_edit' hk.pk %}" class="btn btn-sm btn-warning">✏️</a>
+                    <a href="{% url 'students:hocky_edit' hk.pk %}" class="btn btn-sm btn-warning">Sửa</a>
                     {% endif %}
                 </td>
             </tr>

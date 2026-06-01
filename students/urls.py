@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views
+from . import views, views_api
 
 app_name = 'students'
 
@@ -15,10 +15,12 @@ urlpatterns = [
     # Môn học
     path('monhoc/', views.monhoc_list, name='monhoc_list'),
     path('monhoc/create/', views.monhoc_create, name='monhoc_create'),
+    path('monhoc/import/', views.import_monhoc, name='import_monhoc'),
     path('monhoc/<int:pk>/edit/', views.monhoc_edit, name='monhoc_edit'),
     path('monhoc/<int:pk>/delete/', views.monhoc_delete, name='monhoc_delete'),
     # Học kỳ
     path('hocky/', views.hocky_list, name='hocky_list'),
     path('hocky/create/', views.hocky_create, name='hocky_create'),
     path('hocky/<int:pk>/edit/', views.hocky_edit, name='hocky_edit'),
+    path('api/filter-options/', views_api.api_filter_options, name='api_filter_options'),
 ]

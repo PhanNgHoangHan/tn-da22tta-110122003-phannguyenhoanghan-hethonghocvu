@@ -3,7 +3,8 @@
 {% block page_title %}Danh sách môn học{% endblock %}
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'students:monhoc_create' %}" class="btn btn-primary btn-sm">➕ Thêm môn học</a>
+<a href="{% url 'students:monhoc_create' %}" class="btn btn-primary btn-sm">Thêm môn học</a>
+<a href="{% url 'students:import_monhoc' %}" class="btn btn-secondary btn-sm">Import</a>
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -11,7 +12,7 @@
     <div class="card-body" style="padding:14px 20px">
         <form method="get" class="d-flex gap-2">
             <input type="text" name="q" value="{{ q }}" placeholder="Tìm mã, tên môn..." class="form-control" style="max-width:280px">
-            <button type="submit" class="btn btn-primary btn-sm">🔍</button>
+            <button type="submit" class="btn btn-primary btn-sm">Tìm</button>
             <a href="{% url 'students:monhoc_list' %}" class="btn btn-secondary btn-sm">✕</a>
         </form>
     </div>
@@ -29,8 +30,8 @@
                 <td><span class="badge badge-info">{{ mh.get_loai_display }}</span></td>
                 <td>
                     {% if request.user.is_giaovu or request.user.is_admin %}
-                    <a href="{% url 'students:monhoc_edit' mh.pk %}" class="btn btn-sm btn-warning">✏️</a>
-                    <a href="{% url 'students:monhoc_delete' mh.pk %}" class="btn btn-sm btn-danger">🗑️</a>
+                    <a href="{% url 'students:monhoc_edit' mh.pk %}" class="btn btn-sm btn-warning">Sửa</a>
+                    <a href="{% url 'students:monhoc_delete' mh.pk %}" class="btn btn-sm btn-danger">Xóa</a>
                     {% endif %}
                 </td>
             </tr>

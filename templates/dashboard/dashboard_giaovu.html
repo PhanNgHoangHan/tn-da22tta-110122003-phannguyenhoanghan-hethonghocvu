@@ -3,50 +3,34 @@
 {% block page_title %}Dashboard Tổng quan{% endblock %}
 {% block content %}
 
-
-<div class="grid-2 mb-4">
-    <!-- Cảnh báo theo học kỳ -->
-    <div class="card">
-        <div class="card-header"><span class="card-title">📊 Số cảnh báo theo học kỳ</span></div>
-        <div class="card-body">
-            <div class="chart-container" style="height:220px">
-                <canvas id="cbHkChart"></canvas>
-            </div>
+<!-- KPI Cards -->
+<div class="grid-4 mb-4">
+    <div class="stat-card">
+        <div class="stat-icon blue">SV</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ total_sv }}</div>
+            <div class="stat-label">Tổng sinh viên</div>
         </div>
     </div>
-
-    <!-- Phân bố sinh viên theo ngành -->
-    <div class="card">
-        <div class="card-header"><span class="card-title">🎓 Sinh viên theo ngành</span></div>
-        <div class="card-body">
-            <div class="chart-container" style="height:220px">
-                <canvas id="nganhChart"></canvas>
-            </div>
+    <div class="stat-card">
+        <div class="stat-icon green">DH</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ sv_dang_hoc }}</div>
+            <div class="stat-label">Đang học</div>
         </div>
     </div>
-</div>
-
-<div class="grid-2 mb-4">
-    <!-- Phân phối điểm học kỳ hiện tại -->
-    <div class="card">
-        <div class="card-header">
-            <span class="card-title">🎯 Phân phối điểm chữ</span>
-            {% if hoc_ky_hien_tai %}<span style="font-size:12px;color:#64748b">{{ hoc_ky_hien_tai }}</span>{% endif %}
-        </div>
-        <div class="card-body">
-            <div class="chart-container" style="height:220px">
-                <canvas id="diemChart"></canvas>
-            </div>
+    <div class="stat-card">
+        <div class="stat-icon yellow">CB</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ sv_canh_bao }}</div>
+            <div class="stat-label">Đang cảnh báo</div>
         </div>
     </div>
-
-    <!-- Trạng thái sinh viên -->
-    <div class="card">
-        <div class="card-header"><span class="card-title">📋 Trạng thái sinh viên</span></div>
-        <div class="card-body">
-            <div class="chart-container" style="height:220px">
-                <canvas id="ttChart"></canvas>
-            </div>
+    <div class="stat-card">
+        <div class="stat-icon red">MH</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ total_mon }}</div>
+            <div class="stat-label">Tổng môn học</div>
         </div>
     </div>
 </div>
@@ -54,9 +38,9 @@
 <!-- Cảnh báo mới nhất -->
 <div class="card">
     <div class="card-header">
-        <span class="card-title">🚨 Cảnh báo học vụ mới nhất</span>
+        <span class="card-title">Cảnh báo học vụ mới nhất</span>
         <div class="d-flex gap-2">
-            <a href="{% url 'academic_warnings:kiem_tra' %}" class="btn btn-sm btn-warning">🔍 Kiểm tra</a>
+            <a href="{% url 'dashboard:bao_cao' %}" class="btn btn-sm btn-primary">Xem báo cáo đầy đủ</a>
             <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-sm btn-secondary">Xem tất cả</a>
         </div>
     </div>
@@ -72,71 +56,13 @@
                 <td>{{ cb.hoc_ky }}</td>
                 <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
                 <td style="font-size:12px">{{ cb.ly_do|truncatechars:50 }}</td>
-                <td><a href="{% url 'academic_warnings:canhbao_update' cb.pk %}" class="btn btn-sm btn-warning">Xử lý</a></td>
+                <td><a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}" class="btn btn-sm btn-primary">Chi tiết</a></td>
             </tr>
             {% empty %}
-            <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">✅ Không có cảnh báo mới</td></tr>
+            <tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:24px">Không có cảnh báo mới</td></tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-const cbHkLabels = {{ cb_hk_labels|safe }};
-const cbHkData = {{ cb_hk_data|safe }};
-const nganhLabels = {{ nganh_labels|safe }};
-const nganhData = {{ nganh_data|safe }};
-const ttLabels = {{ tt_labels|safe }};
-const ttData = {{ tt_data|safe }};
-const diemLabels = {{ phan_phoi_labels|safe }};
-const diemData = {{ phan_phoi_data|safe }};
-
-// Cảnh báo theo học kỳ
-if (cbHkLabels.length > 0) {
-    new Chart(document.getElementById('cbHkChart'), {
-        type: 'bar',
-        data: { labels: cbHkLabels, datasets: [{ label: 'Số cảnh báo', data: cbHkData, backgroundColor: '#ef4444', borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
-    });
-}
-
-// Sinh viên theo ngành
-const palette = ['#2563eb','#16a34a','#d97706','#dc2626','#9333ea','#0891b2','#ea580c','#65a30d'];
-if (nganhLabels.length > 0) {
-    new Chart(document.getElementById('nganhChart'), {
-        type: 'bar',
-        data: { labels: nganhLabels, datasets: [{ label: 'Sinh viên', data: nganhData, backgroundColor: palette, borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', plugins: { legend: { display: false } },
-            scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } } }
-    });
-}
-
-// Phân phối điểm
-const diemColors = ['#16a34a','#22c55e','#84cc16','#eab308','#f97316','#ef4444','#dc2626','#991b1b'];
-if (diemData.some(v => v > 0)) {
-    new Chart(document.getElementById('diemChart'), {
-        type: 'bar',
-        data: { labels: diemLabels, datasets: [{ label: 'Số môn', data: diemData, backgroundColor: diemColors, borderRadius: 6 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } } }
-    });
-} else {
-    document.getElementById('diemChart').parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">Chưa có dữ liệu điểm</div>';
-}
-
-// Trạng thái sinh viên
-const ttColors = {'dang_hoc':'#16a34a','canh_bao':'#f59e0b','dinh_chi':'#ef4444','tot_nghiep':'#2563eb','thoi_hoc':'#94a3b8'};
-const ttLabelMap = {'dang_hoc':'Đang học','canh_bao':'Cảnh báo','dinh_chi':'Đình chỉ','tot_nghiep':'Tốt nghiệp','thoi_hoc':'Thôi học'};
-if (ttData.length > 0) {
-    new Chart(document.getElementById('ttChart'), {
-        type: 'doughnut',
-        data: { labels: ttLabels.map(l => ttLabelMap[l] || l), datasets: [{ data: ttData, backgroundColor: ttLabels.map(l => ttColors[l] || '#94a3b8'), borderWidth: 2 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-    });
-}
-</script>
 {% endblock %}

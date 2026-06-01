@@ -2,30 +2,60 @@
 {% block title %}Danh sách sinh viên{% endblock %}
 {% block page_title %}Danh sách sinh viên{% endblock %}
 {% block topbar_actions %}
+{% if request.user.is_giaovu or request.user.is_admin %}
+<a href="{% url 'students:sinhvien_create' %}" class="btn btn-primary btn-sm">Thêm</a>
+<a href="{% url 'students:import_sinhvien' %}" class="btn btn-secondary btn-sm">Import</a>
+{% endif %}
 {% if not request.user.is_sinhvien %}
-<a href="{% url 'students:sinhvien_create' %}" class="btn btn-primary btn-sm">➕ Thêm</a>
-<a href="{% url 'students:import_sinhvien' %}" class="btn btn-secondary btn-sm">📥 Import</a>
-<a href="{% url 'students:export_sinhvien' %}" class="btn btn-secondary btn-sm">📤 Export</a>
+<a href="{% url 'students:export_sinhvien' %}" class="btn btn-secondary btn-sm">Export</a>
 {% endif %}
 {% endblock %}
 {% block content %}
 <!-- Filter -->
 <div class="card mb-3">
     <div class="card-body" style="padding:14px 20px">
-        <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
-            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control" style="max-width:220px">
-            <select name="trang_thai" class="form-select" style="max-width:180px">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center" id="filter-form">
+            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control" style="max-width:200px">
+            
+            <select name="trang_thai" class="form-select" style="max-width:140px">
                 <option value="">-- Trạng thái --</option>
                 <option value="dang_hoc" {% if trang_thai == 'dang_hoc' %}selected{% endif %}>Đang học</option>
                 <option value="canh_bao" {% if trang_thai == 'canh_bao' %}selected{% endif %}>Cảnh báo</option>
                 <option value="dinh_chi" {% if trang_thai == 'dinh_chi' %}selected{% endif %}>Đình chỉ</option>
                 <option value="tot_nghiep" {% if trang_thai == 'tot_nghiep' %}selected{% endif %}>Tốt nghiệp</option>
             </select>
+
+            {% if not request.user.is_sinhvien and not request.user.is_covan %}
+            <!-- Bộ lọc phân cấp thông minh dành cho Giáo vụ / Admin -->
+            <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả Khoa --</option>
+                {% for k in khoas %}
+                <option value="{{ k }}" {% if selected_khoa == k %}selected{% endif %}>{{ k }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="nganh" id="filter-nganh" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả Ngành --</option>
+                {% for n in nganhs %}
+                <option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="lop" id="filter-lop" class="form-select" style="max-width:180px">
+                <option value="">-- Tất cả Lớp --</option>
+                {% for l in lops %}
+                <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
+                {% endfor %}
+            </select>
+            {% else %}
+            <!-- Cố vấn chỉ lọc theo Ngành -->
             <select name="nganh" class="form-select" style="max-width:200px">
                 <option value="">-- Ngành --</option>
                 {% for n in nganhs %}<option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>{% endfor %}
             </select>
-            <button type="submit" class="btn btn-primary btn-sm">🔍 Lọc</button>
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
             <a href="{% url 'students:sinhvien_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
         </form>
     </div>
@@ -58,12 +88,10 @@
                     {% else %}<span class="badge badge-secondary">{{ sv.get_trang_thai_display }}</span>{% endif %}
                 </td>
                 <td>
-                    <a href="{% url 'students:sinhvien_detail' sv.pk %}" class="btn btn-sm btn-secondary">👁️</a>
-                    {% if not request.user.is_sinhvien %}
-                    <a href="{% url 'students:sinhvien_edit' sv.pk %}" class="btn btn-sm btn-warning">✏️</a>
+                    <a href="{% url 'students:sinhvien_detail' sv.pk %}" class="btn btn-sm btn-secondary">Xem</a>
                     {% if request.user.is_giaovu or request.user.is_admin %}
-                    <a href="{% url 'students:sinhvien_delete' sv.pk %}" class="btn btn-sm btn-danger">🗑️</a>
-                    {% endif %}
+                    <a href="{% url 'students:sinhvien_edit' sv.pk %}" class="btn btn-sm btn-warning">Sửa</a>
+                    <a href="{% url 'students:sinhvien_delete' sv.pk %}" class="btn btn-sm btn-danger">Xóa</a>
                     {% endif %}
                 </td>
             </tr>
@@ -75,4 +103,65 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not request.user.is_sinhvien and not request.user.is_covan %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const khoaSelect = document.getElementById('filter-khoa');
+    const nganhSelect = document.getElementById('filter-nganh');
+    const lopSelect = document.getElementById('filter-lop');
+
+    khoaSelect.addEventListener('change', function() {
+        const khoaVal = this.value;
+        nganhSelect.innerHTML = '<option value="">-- Đang tải Ngành... --</option>';
+        lopSelect.innerHTML = '<option value="">-- Tất cả Lớp --</option>';
+
+        if (!khoaVal) {
+            nganhSelect.innerHTML = '<option value="">-- Tất cả Ngành --</option>';
+            return;
+        }
+
+        fetch(`/students/api/filter-options/?khoa=${encodeURIComponent(khoaVal)}`)
+            .then(res => res.json())
+            .then(data => {
+                let html = '<option value="">-- Tất cả Ngành --</option>';
+                data.nganhs.forEach(n => {
+                    html += `<option value="${n.id}">${n.ten_nganh}</option>`;
+                });
+                nganhSelect.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error fetching majors:', err);
+                nganhSelect.innerHTML = '<option value="">-- Lỗi tải Ngành --</option>';
+            });
+    });
+
+    nganhSelect.addEventListener('change', function() {
+        const nganhVal = this.value;
+        lopSelect.innerHTML = '<option value="">-- Đang tải Lớp... --</option>';
+
+        if (!nganhVal) {
+            lopSelect.innerHTML = '<option value="">-- Tất cả Lớp --</option>';
+            return;
+        }
+
+        fetch(`/students/api/filter-options/?nganh=${encodeURIComponent(nganhVal)}`)
+            .then(res => res.json())
+            .then(data => {
+                let html = '<option value="">-- Tất cả Lớp --</option>';
+                data.lops.forEach(l => {
+                    html += `<option value="${l.id}">${l.ten_lop}</option>`;
+                });
+                lopSelect.innerHTML = html;
+            })
+            .catch(err => {
+                console.error('Error fetching classes:', err);
+                lopSelect.innerHTML = '<option value="">-- Lỗi tải Lớp --</option>';
+            });
+    });
+});
+</script>
+{% endif %}
 {% endblock %}

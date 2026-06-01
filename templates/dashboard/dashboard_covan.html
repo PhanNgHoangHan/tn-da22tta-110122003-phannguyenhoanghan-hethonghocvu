@@ -3,35 +3,12 @@
 {% block page_title %}Dashboard Cố vấn học tập{% endblock %}
 {% block content %}
 
-
-<div class="grid-2 mb-4">
-    <!-- Biểu đồ cảnh báo theo mức -->
-    <div class="card">
-        <div class="card-header"><span class="card-title">📊 Phân bố cảnh báo học vụ</span></div>
-        <div class="card-body">
-            <div class="chart-container" style="height:220px">
-                <canvas id="cbChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <!-- Phân bố trạng thái sinh viên -->
-    <div class="card">
-        <div class="card-header"><span class="card-title">🎓 Trạng thái sinh viên</span></div>
-        <div class="card-body">
-            <div class="chart-container" style="height:220px">
-                <canvas id="ttChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
 <div class="grid-2 mb-4">
     <!-- Cảnh báo mới -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">🚨 Cảnh báo mới cần xử lý</span>
-            <a href="{% url 'academic_warnings:canhbao_list' %}?trang_thai=moi" class="btn btn-sm btn-secondary">Xem tất cả</a>
+            <span class="card-title">Cảnh báo học vụ mới</span>
+            <a href="{% url 'academic_warnings:canhbao_list' %}?trang_thai=chua_xu_ly" class="btn btn-sm btn-secondary">Xem tất cả</a>
         </div>
         <div class="card-body" style="padding:0">
             <table class="data-table">
@@ -43,10 +20,10 @@
                     <td>{{ cb.sinh_vien.ho_ten }}</td>
                     <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
                     <td>{{ cb.hoc_ky }}</td>
-                    <td><a href="{% url 'academic_warnings:canhbao_update' cb.pk %}" class="btn btn-sm btn-warning">Xử lý</a></td>
+                    <td><a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}" class="btn btn-sm btn-secondary">Xem</a></td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">✅ Không có cảnh báo mới</td></tr>
+                <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Không có cảnh báo mới</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
@@ -55,9 +32,15 @@
 
     <!-- Sinh viên GPA thấp -->
     <div class="card">
-        <div class="card-header">
-            <span class="card-title">📉 Sinh viên GPA thấp (< 2.0)</span>
-            {% if hoc_ky_hien_tai %}<span style="font-size:12px;color:#64748b">{{ hoc_ky_hien_tai }}</span>{% endif %}
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <span class="card-title">Sinh viên GPA thấp (&lt; 2.0)</span>
+            <form method="get" id="hkForm" class="d-flex align-items-center">
+                <select name="hoc_ky" class="form-select form-select-sm" style="max-width:180px;font-size:12px;padding:4px 8px" onchange="this.form.submit()">
+                    {% for hk in hockys %}
+                    <option value="{{ hk.pk }}" {% if selected_hk.pk == hk.pk %}selected{% endif %}>{{ hk }}</option>
+                    {% endfor %}
+                </select>
+            </form>
         </div>
         <div class="card-body" style="padding:0">
             <table class="data-table">
@@ -71,51 +54,11 @@
                     <td>{{ item.tc }}</td>
                 </tr>
                 {% empty %}
-                <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">✅ Không có sinh viên GPA thấp</td></tr>
+                <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">Không có sinh viên GPA thấp</td></tr>
                 {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-const cbLabels = {{ cb_labels|safe }};
-const cbData = {{ cb_data|safe }};
-const ttLabels = {{ tt_labels|safe }};
-const ttData = {{ tt_data|safe }};
-
-// Biểu đồ cảnh báo - dùng key mới: canh_bao / buoc_thoi_hoc
-const cbColorMap = {'canh_bao': '#f59e0b', 'buoc_thoi_hoc': '#dc2626'};
-const cbLabelMap = {'canh_bao': 'Cảnh báo HV', 'buoc_thoi_hoc': 'Buộc thôi học'};
-
-if (cbData.length > 0 && cbData.some(v => v > 0)) {
-    new Chart(document.getElementById('cbChart'), {
-        type: 'doughnut',
-        data: {
-            labels: cbLabels.map(l => cbLabelMap[l] || l),
-            datasets: [{ data: cbData, backgroundColor: cbLabels.map(l => cbColorMap[l] || '#94a3b8'), borderWidth: 2 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-    });
-} else {
-    document.getElementById('cbChart').parentElement.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">✅ Chưa có cảnh báo</div>';
-}
-
-const ttColors = {'dang_hoc': '#16a34a', 'canh_bao': '#f59e0b', 'dinh_chi': '#ef4444', 'tot_nghiep': '#2563eb', 'thoi_hoc': '#94a3b8'};
-const ttLabelMap = {'dang_hoc':'Đang học','canh_bao':'Cảnh báo','dinh_chi':'Đình chỉ','tot_nghiep':'Tốt nghiệp','thoi_hoc':'Thôi học'};
-
-if (ttData.length > 0) {
-    new Chart(document.getElementById('ttChart'), {
-        type: 'pie',
-        data: {
-            labels: ttLabels.map(l => ttLabelMap[l] || l),
-            datasets: [{ data: ttData, backgroundColor: ttLabels.map(l => ttColors[l] || '#94a3b8'), borderWidth: 2 }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } } }
-    });
-}
-</script>
 {% endblock %}

@@ -12,9 +12,7 @@
         <div class="form-group mb-3">
             <label class="form-label">Trạng thái xử lý</label>
             <select name="trang_thai" class="form-select">
-                <option value="moi" {% if cb.trang_thai == 'moi' %}selected{% endif %}>Mới</option>
-                <option value="da_thong_bao" {% if cb.trang_thai == 'da_thong_bao' %}selected{% endif %}>Đã thông báo</option>
-                <option value="dang_xu_ly" {% if cb.trang_thai == 'dang_xu_ly' %}selected{% endif %}>Đang xử lý</option>
+                <option value="chua_xu_ly" {% if cb.trang_thai == 'chua_xu_ly' %}selected{% endif %}>Chưa xử lý</option>
                 <option value="da_xu_ly" {% if cb.trang_thai == 'da_xu_ly' %}selected{% endif %}>Đã xử lý</option>
             </select>
         </div>
@@ -23,7 +21,7 @@
             <textarea name="ghi_chu" class="form-control" rows="4" placeholder="Nhập ghi chú...">{{ cb.ghi_chu }}</textarea>
         </div>
         <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+            <button type="submit" class="btn btn-primary">Lưu</button>
             <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary">Hủy</a>
         </div>
     </form>

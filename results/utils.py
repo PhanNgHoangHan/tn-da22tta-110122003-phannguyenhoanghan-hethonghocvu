@@ -198,23 +198,34 @@ def la_hk_dau_khoa(sinh_vien, hoc_ky):
     return hk_dau is not None and hk_dau.pk == hoc_ky.pk
 
 
-def dem_canh_bao_lien_tiep(sinh_vien):
-    """Đếm số lần cảnh báo liên tiếp gần nhất (tính từ HK gần nhất về trước)."""
+def dem_canh_bao_lien_tiep(sinh_vien, truoc_hoc_ky=None):
+    """
+    Đếm tổng số lần bị cảnh báo tích lũy trước học kỳ `truoc_hoc_ky` (không cần liên tiếp).
+    Nếu `truoc_hoc_ky` là None, tính tổng số lần cảnh báo từ trước đến nay.
+    """
     from academic_warnings.models import CanhBaoHocVu
     from students.models import HocKy
+    from django.db.models import Q
 
     hockys = HocKy.objects.filter(
         ket_qua__sinh_vien=sinh_vien
-    ).distinct().order_by('-nam_hoc', '-ky')
+    ).distinct()
 
-    lien_tiep = 0
+    if truoc_hoc_ky:
+        hockys = hockys.filter(
+            Q(nam_hoc__lt=truoc_hoc_ky.nam_hoc) |
+            Q(nam_hoc=truoc_hoc_ky.nam_hoc, ky__lt=truoc_hoc_ky.ky)
+        )
+
+    hockys = hockys.order_by('-nam_hoc', '-ky')
+
+    total_warnings = 0
     for hk in hockys:
-        cb = CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, hoc_ky=hk).first()
-        if cb:
-            lien_tiep += 1
-        else:
-            break
-    return lien_tiep
+        co_cb, _ = kiem_tra_canh_bao(sinh_vien, hk)
+        if co_cb:
+            total_warnings += 1
+    return total_warnings
+
 
 
 # ─── Kiểm tra cảnh báo học vụ ─────────────────────────────────────────────
@@ -329,3 +340,86 @@ def get_phan_phoi_diem(sinh_vien=None, hoc_ky=None):
         if chu in phan_phoi:
             phan_phoi[chu] += 1
     return phan_phoi
+
+
+def xac_dinh_muc_canh_bao(sinh_vien, hoc_ky, so_lan_lien_tiep):
+    """
+    Xác định mức cảnh báo ('canh_bao' hoặc 'buoc_thoi_hoc') và lý do bổ sung (nếu có).
+    Trả về (muc: str, ly_do_bo_sung: str).
+    """
+    from academic_warnings.models import CanhBaoHocVu
+    from students.models import HocKy
+    from django.db.models import Q
+
+    # Điều kiện 1: Số lần cảnh báo học tập vượt quá 2 (tức là cảnh báo đến lần thứ 3)
+    if so_lan_lien_tiep > 2:
+        return 'buoc_thoi_hoc', f'Đã bị cảnh báo {so_lan_lien_tiep - 1} lần liên tiếp.'
+
+    # Điều kiện 2: Đã bị cảnh báo học tập và học kỳ chính kế tiếp có điểm trung bình chung học kỳ dưới 1,00 theo hệ 4.
+    if hoc_ky.ky in ['1', '2']:
+        # Tìm học kỳ chính liền trước học kỳ này
+        hk_truoc = HocKy.objects.filter(
+            Q(nam_hoc__lt=hoc_ky.nam_hoc) |
+            Q(nam_hoc=hoc_ky.nam_hoc, ky__lt=hoc_ky.ky)
+        ).filter(ky__in=['1', '2']).order_by('-nam_hoc', '-ky').first()
+
+        if hk_truoc:
+            co_cb_truoc = CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, hoc_ky=hk_truoc).exists()
+            if co_cb_truoc:
+                # Tính ĐTBCHK hệ 4 học kỳ này
+                _, dtbchk_4, tong_tc_hk, _ = tinh_dtbchk(sinh_vien, hoc_ky)
+                if tong_tc_hk > 0 and dtbchk_4 < 1.00:
+                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở HK chính trước ({hk_truoc}) và ĐTBCHK hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00).'
+
+    return 'canh_bao', ''
+
+
+def dong_bo_canh_bao_sinh_vien(sinh_vien):
+    """
+    Đồng bộ tự động tất cả cảnh báo học vụ và trạng thái của một sinh viên.
+    Duyệt qua toàn bộ các học kỳ có điểm theo trình tự thời gian tăng dần,
+    cập nhật hoặc xóa các cảnh báo tương ứng, và thiết lập trạng thái sinh viên phù hợp.
+    """
+    from academic_warnings.models import CanhBaoHocVu
+    from students.models import HocKy
+
+    # Lấy danh sách học kỳ có điểm theo trình tự thời gian tăng dần
+    hockys = HocKy.objects.filter(
+        ket_qua__sinh_vien=sinh_vien
+    ).distinct().order_by('nam_hoc', 'ky')
+
+    for hk in hockys:
+        co_canh_bao, ly_do = kiem_tra_canh_bao(sinh_vien, hk)
+        if co_canh_bao:
+            so_lan_lien_tiep = dem_canh_bao_lien_tiep(sinh_vien, hk) + 1
+            muc, ly_do_bo_sung = xac_dinh_muc_canh_bao(sinh_vien, hk, so_lan_lien_tiep)
+            if ly_do_bo_sung:
+                ly_do = ly_do_bo_sung + ' ' + ly_do
+
+            CanhBaoHocVu.objects.update_or_create(
+                sinh_vien=sinh_vien, hoc_ky=hk,
+                defaults={
+                    'muc_canh_bao': muc,
+                    'ly_do': ly_do,
+                    'trang_thai': 'chua_xu_ly',
+                    'so_lan_canh_bao': so_lan_lien_tiep,
+                }
+            )
+        else:
+            # Nếu không thỏa mãn điều kiện cảnh báo học kỳ này, xóa bản ghi cảnh báo cũ nếu có
+            CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, hoc_ky=hk).delete()
+
+    # Cập nhật trạng thái sinh viên:
+    # 1. Nếu có bất kỳ cảnh báo "buộc thôi học" nào -> dinh_chi
+    # 2. Nếu học kỳ có điểm gần đây nhất bị cảnh báo học vụ -> canh_bao
+    # 3. Ngược lại -> dang_hoc
+    has_bth = CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, muc_canh_bao='buoc_thoi_hoc').exists()
+    if has_bth:
+        sinh_vien.trang_thai = 'dinh_chi'
+    else:
+        last_hk = hockys.last()
+        if last_hk and CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, hoc_ky=last_hk).exists():
+            sinh_vien.trang_thai = 'canh_bao'
+        else:
+            sinh_vien.trang_thai = 'dang_hoc'
+    sinh_vien.save()

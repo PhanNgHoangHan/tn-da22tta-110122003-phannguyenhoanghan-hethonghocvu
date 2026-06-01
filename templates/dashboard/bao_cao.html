@@ -1,8 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}Báo cáo & Thống kê{% endblock %}
-{% block page_title %}Báo cáo & Thống kê{% endblock %}
+{% block page_title %}Báo cáo và Thống kê{% endblock %}
 {% block topbar_actions %}
-<a href="{% url 'dashboard:export_bao_cao' %}" class="btn btn-success btn-sm">📤 Xuất Excel</a>
+<a href="{% url 'dashboard:export_bao_cao' %}" class="btn btn-success btn-sm">Xuất Excel</a>
 {% endblock %}
 {% block content %}
 
@@ -12,41 +12,58 @@
         <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
             <select name="hoc_ky" class="form-select" style="max-width:180px">
                 <option value="">-- Tất cả học kỳ --</option>
-                {% for hk in hockys %}<option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>{% endfor %}
+                {% for hk in hockys %}
+                <option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>
+                {% endfor %}
             </select>
             <select name="nganh" class="form-select" style="max-width:200px">
                 <option value="">-- Tất cả ngành --</option>
-                {% for n in nganhs %}<option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>{% endfor %}
+                {% for n in nganhs %}
+                <option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
+                {% endfor %}
             </select>
-            <button type="submit" class="btn btn-primary btn-sm">🔍 Lọc</button>
+            <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
             <a href="{% url 'dashboard:bao_cao' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
         </form>
     </div>
 </div>
 
-<!-- Thống kê tổng hợp -->
+<!-- KPI Cards -->
 <div class="grid-4 mb-4">
     <div class="stat-card">
-        <div class="stat-icon blue">👨‍🎓</div>
-        <div class="stat-info"><div class="stat-value">{{ stats.total_sv }}</div><div class="stat-label">Tổng sinh viên</div></div>
+        <div class="stat-icon blue">SV</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.total_sv }}</div>
+            <div class="stat-label">Tổng sinh viên</div>
+        </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon green">✅</div>
-        <div class="stat-info"><div class="stat-value">{{ stats.sv_dang_hoc }}</div><div class="stat-label">Đang học</div></div>
+        <div class="stat-icon green">DH</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.sv_dang_hoc }}</div>
+            <div class="stat-label">Đang học</div>
+        </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon yellow">⚠️</div>
-        <div class="stat-info"><div class="stat-value">{{ stats.sv_canh_bao }}</div><div class="stat-label">Cảnh báo mức 1</div></div>
+        <div class="stat-icon yellow">CB1</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.sv_canh_bao }}</div>
+            <div class="stat-label">Cảnh báo mức 1</div>
+        </div>
     </div>
     <div class="stat-card">
-        <div class="stat-icon red">🚨</div>
-        <div class="stat-info"><div class="stat-value">{{ stats.sv_canh_bao_2 }}</div><div class="stat-label">Cảnh báo mức 2</div></div>
+        <div class="stat-icon red">CB2</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ stats.sv_canh_bao_2 }}</div>
+            <div class="stat-label">Cảnh báo mức 2</div>
+        </div>
     </div>
 </div>
 
+<!-- Hàng biểu đồ 1: Điểm + Tỷ lệ -->
 <div class="grid-2 mb-4">
     <div class="card">
-        <div class="card-header"><span class="card-title">🎯 Phân phối điểm chữ</span></div>
+        <div class="card-header"><span class="card-title">Phân phối điểm chữ (Đơn vị tính: Số lượng điểm)</span></div>
         <div class="card-body">
             <div class="chart-container" style="height:260px">
                 <canvas id="diemChart"></canvas>
@@ -55,67 +72,156 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><span class="card-title">📊 Tỷ lệ đạt/không đạt</span></div>
+        <div class="card-header"><span class="card-title">Tỷ lệ đạt/không đạt (Đơn vị tính: Số lượng điểm)</span></div>
         <div class="card-body" style="display:flex;align-items:center;justify-content:center;height:260px">
             <canvas id="datChart" style="max-width:220px;max-height:220px"></canvas>
         </div>
     </div>
 </div>
 
-<!-- Thống kê cảnh báo -->
-<div class="card">
-    <div class="card-header"><span class="card-title">📋 Tổng hợp cảnh báo học vụ</span></div>
-    <div class="card-body">
-        <div class="grid-3">
-            <div style="text-align:center;padding:20px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a">
-                <div style="font-size:32px;font-weight:700;color:#d97706">{{ stats.sv_canh_bao }}</div>
-                <div style="font-size:13px;color:#92400e;margin-top:4px">Cảnh báo học vụ</div>
-                <div style="font-size:11px;color:#78350f;margin-top:2px">Vi phạm 3/4 điều kiện</div>
+<!-- Hàng biểu đồ 2: Cảnh báo theo HK + Sinh viên theo ngành -->
+<div class="grid-2 mb-4">
+    <div class="card">
+        <div class="card-header"><span class="card-title">Số cảnh báo theo học kỳ (Đơn vị tính: Số lượt cảnh báo)</span>
+        </div>
+        <div class="card-body">
+            <div class="chart-container" style="height:260px">
+                <canvas id="cbHkChart"></canvas>
             </div>
-            <div style="text-align:center;padding:20px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca">
-                <div style="font-size:32px;font-weight:700;color:#dc2626">{{ stats.sv_canh_bao_2 }}</div>
-                <div style="font-size:13px;color:#991b1b;margin-top:4px">Cảnh báo lần 2</div>
-                <div style="font-size:11px;color:#7f1d1d;margin-top:2px">Cảnh báo liên tiếp lần 2</div>
-            </div>
-            <div style="text-align:center;padding:20px;background:#1e293b;border-radius:10px">
-                <div style="font-size:32px;font-weight:700;color:white">{{ stats.sv_canh_bao_3 }}</div>
-                <div style="font-size:13px;color:#cbd5e1;margin-top:4px">Buộc thôi học</div>
-                <div style="font-size:11px;color:#94a3b8;margin-top:2px">Cảnh báo liên tiếp &gt; 2 lần</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Sinh viên theo ngành (Đơn vị tính: Số sinh viên)</span></div>
+        <div class="card-body">
+            <div class="chart-container" style="height:260px">
+                <canvas id="nganhChart"></canvas>
             </div>
         </div>
     </div>
 </div>
+
+<!-- Hàng biểu đồ 3: Trạng thái SV + Tổng hợp cảnh báo -->
+<div class="grid-2 mb-4">
+    <div class="card">
+        <div class="card-header"><span class="card-title">Trạng thái sinh viên (Đơn vị tính: Số sinh viên)</span></div>
+        <div class="card-body" style="display:flex;align-items:center;justify-content:center;height:260px">
+            <canvas id="ttChart" style="max-width:240px;max-height:240px"></canvas>
+        </div>
+    </div>
+
+    <!-- Tổng hợp cảnh báo -->
+    <div class="card">
+        <div class="card-header"><span class="card-title">Tổng hợp cảnh báo học vụ</span></div>
+        <div class="card-body">
+            <div class="grid-3" style="gap:12px">
+                <div
+                    style="text-align:center;padding:20px;background:#fffbeb;border-radius:10px;border:1px solid #fde68a">
+                    <div style="font-size:32px;font-weight:700;color:#d97706">{{ stats.sv_canh_bao }}</div>
+                    <div style="font-size:13px;color:#92400e;margin-top:4px">Cảnh báo học vụ</div>
+                    <div style="font-size:11px;color:#78350f;margin-top:2px">Vi phạm điều kiện</div>
+                </div>
+                <div
+                    style="text-align:center;padding:20px;background:#fef2f2;border-radius:10px;border:1px solid #fecaca">
+                    <div style="font-size:32px;font-weight:700;color:#dc2626">{{ stats.sv_canh_bao_2 }}</div>
+                    <div style="font-size:13px;color:#991b1b;margin-top:4px">Cảnh báo lần 2</div>
+                    <div style="font-size:11px;color:#7f1d1d;margin-top:2px">Cảnh báo liên tiếp</div>
+                </div>
+                <div style="text-align:center;padding:20px;background:#1e293b;border-radius:10px">
+                    <div style="font-size:32px;font-weight:700;color:white">{{ stats.sv_canh_bao_3 }}</div>
+                    <div style="font-size:13px;color:#cbd5e1;margin-top:4px">Buộc thôi học</div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px">Cảnh báo &gt; 2 lần</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
 <script>
-const diemLabels = {{ phan_phoi_labels|safe }};
-const diemData = {{ phan_phoi_data|safe }};
+    const diemLabels = {{ phan_phoi_labels| safe }};
+    const diemData = {{ phan_phoi_data| safe }};
+    const cbHkLabels = {{ cb_hk_labels| safe }};
+    const cbHkData = {{ cb_hk_data| safe }};
+    const nganhLabels = {{ nganh_labels| safe }};
+    const nganhData = {{ nganh_data| safe }};
+    const ttLabels = {{ tt_labels| safe }};
+    const ttData = {{ tt_data| safe }};
 
-const diemColors = ['#16a34a','#22c55e','#84cc16','#eab308','#f97316','#ef4444','#dc2626','#991b1b'];
-new Chart(document.getElementById('diemChart'), {
-    type: 'bar',
-    data: {
-        labels: diemLabels,
-        datasets: [{ label: 'Số môn', data: diemData, backgroundColor: diemColors, borderRadius: 6 }]
-    },
-    options: { responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
-    }
-});
+    // Phân phối điểm
+    const diemColors = ['#16a34a', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#dc2626', '#991b1b'];
+    new Chart(document.getElementById('diemChart'), {
+        type: 'bar',
+        data: {
+            labels: diemLabels,
+            datasets: [{ label: 'Số điểm', data: diemData, backgroundColor: diemColors, borderRadius: 6 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+        }
+    });
 
-const dat = {{ stats.kq_dat }};
-const khongDat = {{ stats.total_kq }} - dat;
-new Chart(document.getElementById('datChart'), {
-    type: 'doughnut',
-    data: {
-        labels: ['Đạt', 'Không đạt'],
-        datasets: [{ data: [dat, khongDat], backgroundColor: ['#16a34a', '#ef4444'], borderWidth: 3 }]
-    },
-    options: { responsive: true, maintainAspectRatio: true,
-        plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }
+    // Tỷ lệ đạt/không đạt
+    const dat = {{ stats.kq_dat }};
+    const khongDat = {{ stats.total_kq }} - dat;
+    new Chart(document.getElementById('datChart'), {
+        type: 'doughnut',
+        data: {
+            labels: ['Đạt', 'Không đạt'],
+            datasets: [{ data: [dat, khongDat], backgroundColor: ['#16a34a', '#ef4444'], borderWidth: 3 }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: true,
+            plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }
+        }
+    });
+
+    // Cảnh báo theo học kỳ
+    if (cbHkLabels.length > 0) {
+        new Chart(document.getElementById('cbHkChart'), {
+            type: 'bar',
+            data: { labels: cbHkLabels, datasets: [{ label: 'Số cảnh báo', data: cbHkData, backgroundColor: '#ef4444', borderRadius: 6 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+            }
+        });
     }
-});
+
+    // Sinh viên theo ngành
+    const palette = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#9333ea', '#0891b2', '#ea580c', '#65a30d'];
+    if (nganhLabels.length > 0) {
+        new Chart(document.getElementById('nganhChart'), {
+            type: 'bar',
+            data: { labels: nganhLabels, datasets: [{ label: 'Sinh viên', data: nganhData, backgroundColor: palette, borderRadius: 6 }] },
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } }
+            }
+        });
+    }
+
+    // Trạng thái sinh viên
+    const ttColors = { 'dang_hoc': '#16a34a', 'canh_bao': '#f59e0b', 'dinh_chi': '#ef4444', 'tot_nghiep': '#2563eb', 'thoi_hoc': '#94a3b8' };
+    const ttLabelMap = { 'dang_hoc': 'Đang học', 'canh_bao': 'Cảnh báo', 'dinh_chi': 'Đình chỉ', 'tot_nghiep': 'Tốt nghiệp', 'thoi_hoc': 'Thôi học' };
+    if (ttData.length > 0) {
+        new Chart(document.getElementById('ttChart'), {
+            type: 'doughnut',
+            data: {
+                labels: ttLabels.map(l => ttLabelMap[l] || l),
+                datasets: [{ data: ttData, backgroundColor: ttLabels.map(l => ttColors[l] || '#94a3b8'), borderWidth: 2 }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: true,
+                plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+            }
+        });
+    }
 </script>
 {% endblock %}

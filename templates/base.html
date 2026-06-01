@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dashboard Học Vụ{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/main.css">
+    <link rel="stylesheet" href="/static/css/main.css?v=1.0.1">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
@@ -32,20 +32,20 @@
     <nav class="sidebar-nav">
         <div class="nav-section-title">Tổng quan</div>
         <a href="{% url 'dashboard:index' %}" class="{% if request.resolver_match.namespace == 'dashboard' and request.resolver_match.url_name == 'index' %}active{% endif %}">
-            <span class="nav-icon">🏠</span> Dashboard
+            Dashboard
         </a>
 
         {% if not user.is_sinhvien %}
         <div class="nav-section-title">Quản lý</div>
         <a href="{% url 'students:sinhvien_list' %}" class="{% if request.resolver_match.namespace == 'students' and 'sinhvien' in request.resolver_match.url_name %}active{% endif %}">
-            <span class="nav-icon">👨‍🎓</span> Sinh viên
+            Sinh viên
         </a>
         {% if user.is_giaovu or user.is_admin %}
         <a href="{% url 'students:monhoc_list' %}" class="{% if 'monhoc' in request.resolver_match.url_name %}active{% endif %}">
-            <span class="nav-icon">📚</span> Môn học
+            Môn học
         </a>
         <a href="{% url 'students:hocky_list' %}" class="{% if 'hocky' in request.resolver_match.url_name %}active{% endif %}">
-            <span class="nav-icon">📅</span> Học kỳ
+            Học kỳ
         </a>
         {% endif %}
         {% else %}
@@ -54,23 +54,26 @@
 
         <div class="nav-section-title">Học tập</div>
         <a href="{% url 'results:ketqua_list' %}" class="{% if request.resolver_match.namespace == 'results' %}active{% endif %}">
-            <span class="nav-icon">📝</span> Kết quả học tập
+            Kết quả học tập
         </a>
         <a href="{% url 'academic_warnings:canhbao_list' %}" class="{% if request.resolver_match.namespace == 'academic_warnings' %}active{% endif %}">
-            <span class="nav-icon">⚠️</span> Cảnh báo học vụ
+            Cảnh báo học vụ
         </a>
 
         {% if not user.is_sinhvien %}
         <div class="nav-section-title">Báo cáo</div>
         <a href="{% url 'dashboard:bao_cao' %}" class="{% if request.resolver_match.url_name == 'bao_cao' %}active{% endif %}">
-            <span class="nav-icon">📊</span> Báo cáo & Thống kê
+            Báo cáo & Thống kê
         </a>
         {% if user.is_giaovu or user.is_admin %}
         <a href="{% url 'results:import_diem' %}">
-            <span class="nav-icon">📥</span> Import điểm
+            Import điểm
         </a>
         <a href="{% url 'students:import_sinhvien' %}">
-            <span class="nav-icon">📥</span> Import sinh viên
+            Import sinh viên
+        </a>
+        <a href="{% url 'students:import_monhoc' %}">
+            Import môn học
         </a>
         {% endif %}
         {% endif %}
@@ -78,20 +81,18 @@
         {% if user.is_admin %}
         <div class="nav-section-title">Hệ thống</div>
         <a href="{% url 'accounts:user_list' %}">
-            <span class="nav-icon">👥</span> Quản lý người dùng
-        </a>
-        <a href="{% url 'academic_warnings:kiem_tra' %}">
-            <span class="nav-icon">🔍</span> Kiểm tra cảnh báo
+            Quản lý người dùng
         </a>
         <a href="/admin/">
-            <span class="nav-icon">⚙️</span> Admin panel
+            Admin panel
         </a>
         {% endif %}
     </nav>
 
     <div class="sidebar-footer">
-        <a href="{% url 'accounts:profile' %}">👤 Hồ sơ cá nhân</a>
-        <a href="{% url 'accounts:logout' %}" style="color:#ef4444">🚪 Đăng xuất</a>
+        <a href="{% url 'accounts:profile' %}">Hồ sơ cá nhân</a>
+        <a href="{% url 'accounts:change_password' %}">Đổi mật khẩu</a>
+        <a href="{% url 'accounts:logout' %}" style="color:#ef4444">Đăng xuất</a>
     </div>
 </aside>
 
@@ -99,7 +100,14 @@
 <div class="main-wrapper">
     <header class="topbar">
         <button onclick="document.getElementById('sidebar').classList.toggle('open')"
-                style="background:none;border:none;font-size:20px;cursor:pointer;display:none" id="menu-btn">☰</button>
+                style="background:none;border:none;font-size:20px;cursor:pointer;display:none;color:#ffffff;" id="menu-btn">☰</button>
+        {% with vn=request.resolver_match.view_name %}
+        {% if vn != 'dashboard:index' and vn != 'students:sinhvien_list' and vn != 'students:monhoc_list' and vn != 'students:hocky_list' and vn != 'results:ketqua_list' and vn != 'academic_warnings:canhbao_list' and vn != 'dashboard:bao_cao' and vn != 'results:import_diem' and vn != 'students:import_sinhvien' and vn != 'students:import_monhoc' and vn != 'accounts:user_list' and vn != 'accounts:profile' and vn != 'accounts:change_password' %}
+        <button onclick="history.back()" class="btn btn-sm" style="margin-right: 8px; padding: 5px 12px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.12); color: #ffffff; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
+            Quay lại
+        </button>
+        {% endif %}
+        {% endwith %}
         <div class="topbar-title">{% block page_title %}Dashboard{% endblock %}</div>
         <div class="topbar-actions">
             {% block topbar_actions %}{% endblock %}
@@ -110,7 +118,6 @@
         {% if messages %}
         {% for msg in messages %}
         <div class="alert alert-{{ msg.tags|default:'info' }}">
-            <span>{% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' or msg.tags == 'danger' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}</span>
             <span>{{ msg }}</span>
         </div>
         {% endfor %}
@@ -131,6 +138,18 @@ if (window.innerWidth <= 768 && menuBtn) menuBtn.style.display = 'block';
 window.addEventListener('resize', () => {
     if (menuBtn) menuBtn.style.display = window.innerWidth <= 768 ? 'block' : 'none';
 });
+
+// Preserve sidebar scroll position across page reloads
+const sidebar = document.getElementById('sidebar');
+if (sidebar) {
+    const scrollPos = sessionStorage.getItem('sidebar-scroll');
+    if (scrollPos) {
+        sidebar.scrollTop = parseInt(scrollPos, 10);
+    }
+    sidebar.addEventListener('scroll', () => {
+        sessionStorage.setItem('sidebar-scroll', sidebar.scrollTop);
+    });
+}
 </script>
 {% block extra_js %}{% endblock %}
 </body>

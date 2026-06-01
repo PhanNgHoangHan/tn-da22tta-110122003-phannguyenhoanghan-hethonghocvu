@@ -98,8 +98,8 @@ def dashboard_covan(request):
 
     # Cảnh báo mới
     canh_baos_moi = CanhBaoHocVu.objects.filter(
-        sinh_vien__lop__covan=request.user, trang_thai='moi'
-    ).select_related('sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
+        sinh_vien__lop__covan=request.user, trang_thai='chua_xu_ly'
+    ).exclude(nguoi_dung_an=request.user).select_related('sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
 
     # Thống kê theo mức cảnh báo
     cb_stats = CanhBaoHocVu.objects.filter(sinh_vien__lop__covan=request.user).values(
@@ -107,14 +107,23 @@ def dashboard_covan(request):
     cb_labels = [d['muc_canh_bao'] for d in cb_stats]
     cb_data = [d['count'] for d in cb_stats]
 
-    # Danh sách sinh viên có GPA thấp
-    hoc_ky_hien_tai = HocKy.objects.filter(la_hien_tai=True).first()
+    # Danh sách học kỳ để cố vấn lựa chọn lọc GPA
+    hockys = HocKy.objects.all().order_by('-nam_hoc', '-ky')
+    hk_id = request.GET.get('hoc_ky', '')
+
+    if hk_id:
+        selected_hk = HocKy.objects.filter(pk=hk_id).first()
+    else:
+        selected_hk = HocKy.objects.filter(la_hien_tai=True).first()
+        if not selected_hk and hockys.exists():
+            selected_hk = hockys[0]
+
     sv_gpa_thap = []
-    if hoc_ky_hien_tai:
-        for sv in svs.filter(trang_thai='dang_hoc'):
-            dtbchk_10, dtbchk_4, tc, _ = tinh_dtbchk(sv, hoc_ky_hien_tai)
-            if tc > 0 and dtbchk_10 < 2.0:
-                sv_gpa_thap.append({'sv': sv, 'gpa': dtbchk_10, 'tc': tc})
+    if selected_hk:
+        for sv in svs:
+            dtbchk_10, dtbchk_4, tc, _ = tinh_dtbchk(sv, selected_hk)
+            if tc > 0 and dtbchk_4 < 2.0:
+                sv_gpa_thap.append({'sv': sv, 'gpa': dtbchk_4, 'tc': tc})
         sv_gpa_thap.sort(key=lambda x: x['gpa'])
 
     # Phân bố trạng thái sinh viên
@@ -126,7 +135,8 @@ def dashboard_covan(request):
         'sv_dang_hoc': sv_dang_hoc,
         'canh_baos_moi': canh_baos_moi,
         'sv_gpa_thap': sv_gpa_thap[:10],
-        'hoc_ky_hien_tai': hoc_ky_hien_tai,
+        'hockys': hockys,
+        'selected_hk': selected_hk,
         'cb_labels': json.dumps([d['muc_canh_bao'] for d in cb_stats]),
         'cb_data': json.dumps([d['count'] for d in cb_stats]),
         'tt_labels': json.dumps([d['trang_thai'] for d in trang_thai_stats]),
@@ -142,7 +152,7 @@ def dashboard_giaovu(request):
     sv_canh_bao = SinhVien.objects.filter(trang_thai='canh_bao').count()
     sv_dang_hoc = SinhVien.objects.filter(trang_thai='dang_hoc').count()
     total_mon = MonHoc.objects.count()
-    total_canh_bao = CanhBaoHocVu.objects.filter(trang_thai='moi', muc_canh_bao='canh_bao').count()
+    total_canh_bao = CanhBaoHocVu.objects.filter(trang_thai='chua_xu_ly', muc_canh_bao='canh_bao').exclude(nguoi_dung_an=request.user).count()
 
     # Thống kê cảnh báo theo học kỳ
     hockys = HocKy.objects.order_by('nam_hoc', 'ky')[:8]
@@ -156,7 +166,7 @@ def dashboard_giaovu(request):
     tt_stats = SinhVien.objects.values('trang_thai').annotate(count=Count('id'))
 
     # Cảnh báo mới nhất
-    canh_baos_moi = CanhBaoHocVu.objects.filter(trang_thai='moi').select_related(
+    canh_baos_moi = CanhBaoHocVu.objects.filter(trang_thai='chua_xu_ly').exclude(nguoi_dung_an=request.user).select_related(
         'sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
 
     # GPA trung bình theo học kỳ (tính từ dữ liệu)
@@ -196,9 +206,9 @@ def bao_cao(request):
     qs_cb = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky')
 
     if request.user.is_covan:
-        qs_sv = qs_sv.filter(covan=request.user)
-        qs_kq = qs_kq.filter(sinh_vien__covan=request.user)
-        qs_cb = qs_cb.filter(sinh_vien__covan=request.user)
+        qs_sv = qs_sv.filter(lop__covan=request.user)
+        qs_kq = qs_kq.filter(sinh_vien__lop__covan=request.user)
+        qs_cb = qs_cb.filter(sinh_vien__lop__covan=request.user)
 
     if hk_id:
         qs_kq = qs_kq.filter(hoc_ky_id=hk_id)
@@ -223,12 +233,29 @@ def bao_cao(request):
         'kq_dat': sum(1 for kq in qs_kq if kq.dat),
     }
 
+    # Biểu đồ: Cảnh báo theo học kỳ
+    hockys_chart = HocKy.objects.order_by('nam_hoc', 'ky')[:10]
+    cb_hk_labels = [str(hk) for hk in hockys_chart]
+    cb_hk_data = [CanhBaoHocVu.objects.filter(hoc_ky=hk).count() for hk in hockys_chart]
+
+    # Biểu đồ: Sinh viên theo ngành
+    nganh_stats = qs_sv.values('nganh__ten_nganh').annotate(count=Count('id')).order_by('-count')[:8]
+
+    # Biểu đồ: Trạng thái sinh viên
+    tt_stats = qs_sv.values('trang_thai').annotate(count=Count('id'))
+
     context = {
         'hockys': hockys, 'nganhs': nganhs,
         'hk_id': hk_id, 'nganh_id': nganh_id,
         'stats': stats,
         'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
         'phan_phoi_data': json.dumps(list(phan_phoi.values())),
+        'cb_hk_labels': json.dumps(cb_hk_labels),
+        'cb_hk_data': json.dumps(cb_hk_data),
+        'nganh_labels': json.dumps([d['nganh__ten_nganh'] or 'Chưa xác định' for d in nganh_stats]),
+        'nganh_data': json.dumps([d['count'] for d in nganh_stats]),
+        'tt_labels': json.dumps([d['trang_thai'] for d in tt_stats]),
+        'tt_data': json.dumps([d['count'] for d in tt_stats]),
     }
     return render(request, 'dashboard/bao_cao.html', context)
 

@@ -2,10 +2,7 @@
 {% block title %}Cảnh báo học vụ{% endblock %}
 {% block page_title %}Cảnh báo học vụ{% endblock %}
 {% block topbar_actions %}
-{% if request.user.is_admin or request.user.is_giaovu %}
-<a href="{% url 'academic_warnings:kiem_tra' %}" class="btn btn-warning btn-sm">🔍 Kiểm tra cảnh báo</a>
-{% endif %}
-<a href="{% url 'academic_warnings:export' %}" class="btn btn-secondary btn-sm">📤 Export</a>
+<a href="{% url 'academic_warnings:export' %}" class="btn btn-secondary btn-sm">Export</a>
 {% endblock %}
 {% block content %}
 <!-- Filter -->
@@ -13,13 +10,33 @@
     <div class="card-body" style="padding:14px 20px">
         <form method="get" class="d-flex gap-2 flex-wrap align-items-center">
             {% if not request.user.is_sinhvien %}
-            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control" style="max-width:200px">
+            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control"
+                style="max-width:200px">
             {% endif %}
+
+            {% if request.user.is_giaovu or request.user.is_admin %}
+            <select name="lop" class="form-select" style="max-width:180px">
+                <option value="">-- Tất cả Lớp --</option>
+                {% for l in lops %}
+                <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
             <select name="hoc_ky" class="form-select" style="max-width:180px">
                 <option value="">-- Tất cả học kỳ --</option>
-                {% for hk in hockys %}<option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>{% endfor %}
+                {% for hk in hockys %}
+                <option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>
+                {% endfor %}
             </select>
-            <button type="submit" class="btn btn-primary btn-sm">🔍 Lọc</button>
+
+            <select name="trang_thai" class="form-select" style="max-width:160px">
+                <option value="">-- Trạng thái --</option>
+                <option value="chua_xu_ly" {% if trang_thai == 'chua_xu_ly' %}selected{% endif %}>Chưa xử lý</option>
+                <option value="da_xu_ly" {% if trang_thai == 'da_xu_ly' %}selected{% endif %}>Đã xử lý</option>
+            </select>
+
+            <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
             <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
         </form>
     </div>
@@ -29,40 +46,80 @@
     <div class="card-header"><span class="card-title">Tổng: {{ canh_baos|length }} cảnh báo</span></div>
     <div class="card-body" style="padding:0">
         <div class="table-responsive">
-        <table class="data-table">
-            <thead><tr>
-                <th>MSSV</th><th>Họ tên</th><th>Ngành</th><th>Học kỳ</th>
-                <th>Mức cảnh báo</th><th>Lần thứ</th><th>Lý do</th><th>Trạng thái</th><th>Ngày tạo</th><th>Thao tác</th>
-            </tr></thead>
-            <tbody>
-            {% for cb in canh_baos %}
-            <tr>
-                <td><strong>{{ cb.sinh_vien.mssv }}</strong></td>
-                <td>{{ cb.sinh_vien.ho_ten }}</td>
-                <td>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</td>
-                <td>{{ cb.hoc_ky }}</td>
-                <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
-                <td style="text-align:center"><strong>{{ cb.so_lan_canh_bao }}</strong></td>
-                <td style="max-width:200px;font-size:12px">{{ cb.ly_do|truncatechars:60 }}</td>
-                <td>
-                    {% if cb.trang_thai == 'moi' %}<span class="badge badge-danger">Mới</span>
-                    {% elif cb.trang_thai == 'da_thong_bao' %}<span class="badge badge-warning">Đã TB</span>
-                    {% elif cb.trang_thai == 'dang_xu_ly' %}<span class="badge badge-info">Đang XL</span>
-                    {% else %}<span class="badge badge-success">Đã XL</span>{% endif %}
-                </td>
-                <td style="font-size:12px">{{ cb.ngay_tao|date:"d/m/Y" }}</td>                <td>
-                    <a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}" class="btn btn-sm btn-secondary">👁️</a>
-                    {% if not request.user.is_sinhvien %}
-                    <a href="{% url 'academic_warnings:canhbao_update' cb.pk %}" class="btn btn-sm btn-warning">✏️</a>
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="9" style="text-align:center;color:#94a3b8;padding:32px">✅ Không có cảnh báo học vụ</td></tr>
-            {% endfor %}
-            </tbody>
-        </table>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>MSSV</th>
+                        <th>Họ tên</th>
+                        <th>Ngành</th>
+                        <th>Học kỳ</th>
+                        <th>Mức cảnh báo</th>
+                        <th>Lần thứ</th>
+                        <th>Lý do</th>
+                        <th>Trạng thái</th>
+                        <th>Ngày tạo</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cb in canh_baos %}
+                    <tr {% if cb.trang_thai == 'da_xu_ly' %}style="opacity: 0.6; background-color: #f8fafc;" {% endif %}>
+                        <td><strong>{{ cb.sinh_vien.mssv }}</strong></td>
+                        <td>{{ cb.sinh_vien.ho_ten }}</td>
+                        <td>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</td>
+                        <td>{{ cb.hoc_ky }}</td>
+                        <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span>
+                        </td>
+                        <td style="text-align:center"><strong>{{ cb.so_lan_canh_bao }}</strong></td>
+                        <td style="max-width:200px;font-size:12px">{{ cb.ly_do|truncatechars:60 }}</td>
+                        <td>
+                            {% if cb.trang_thai == 'da_xu_ly' %}
+                            <span class="badge badge-success">Đã xử lý</span>
+                            {% else %}
+                            <span class="badge badge-danger">Chưa xử lý</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size:12px">{{ cb.ngay_tao|date:"d/m/Y" }}</td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                <a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}"
+                                    class="btn btn-sm btn-secondary">Xem</a>
+                                {% if cb.trang_thai == 'da_xu_ly' %}
+                                {% if request.user.is_giaovu or request.user.is_admin or request.user.is_covan %}
+                                <a href="{% url 'academic_warnings:canhbao_hide' cb.pk %}" class="btn btn-sm btn-danger"
+                                    onclick="return confirm('Bạn có chắc chắn muốn xóa cảnh báo này khỏi danh sách quản lý?')">Xóa</a>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align:center;color:#94a3b8;padding:32px">Không có cảnh báo học vụ
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
+    {% if request.user.is_giaovu or request.user.is_admin %}
+    <div
+        style="padding: 16px 20px; background: #f8fafc; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
+        <form action="{% url 'academic_warnings:canhbao_send_bulk_email' %}?{{ request.GET.urlencode }}" method="post"
+            onsubmit="return confirm('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ đến TẤT CẢ các sinh viên chưa xử lý trong danh sách bộ lọc hiện tại? Trạng thái của các cảnh báo này sẽ chuyển sang Đã xử lý.')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success"
+                style="padding: 10px 24px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"
+                    style="margin-right: 4px;">
+                    <path
+                        d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
+                </svg>
+                Gửi thông báo
+            </button>
+        </form>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

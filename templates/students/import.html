@@ -4,7 +4,7 @@
 {% block content %}
 <div class="form-card" style="max-width:560px">
     <div class="alert alert-info">
-        <span>ℹ️</span>
+        <span></span>
         <div>
             <strong>Định dạng file CSV/Excel:</strong><br>
             Các cột cần có: <code>mssv, ho_ten, email, ma_nganh, ten_nganh, khoa, lop, trang_thai</code>
@@ -19,7 +19,7 @@
         </div>
         {% endfor %}
         <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">📥 Import</button>
+            <button type="submit" class="btn btn-primary">Import</button>
             <a href="{% url 'students:sinhvien_list' %}" class="btn btn-secondary">Hủy</a>
         </div>
     </form>

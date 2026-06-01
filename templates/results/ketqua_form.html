@@ -4,7 +4,7 @@
 {% block content %}
 <div class="form-card" style="max-width:600px">
     <div class="alert alert-info">
-        <span>ℹ️</span>
+        <span></span>
         <span>Điểm tổng kết = Điểm QT × 40% + Điểm thi × 60%. Nếu nhập điểm TK trực tiếp, hệ thống sẽ dùng giá trị đó.</span>
     </div>
     <form method="post">
@@ -17,7 +17,7 @@
         </div>
         {% endfor %}
         <div class="d-flex gap-2 mt-4">
-            <button type="submit" class="btn btn-primary">💾 Lưu</button>
+            <button type="submit" class="btn btn-primary">Lưu</button>
             <a href="{% url 'results:ketqua_list' %}" class="btn btn-secondary">Hủy</a>
         </div>
     </form>

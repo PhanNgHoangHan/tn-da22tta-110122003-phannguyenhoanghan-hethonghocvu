@@ -6,7 +6,7 @@
 {% if canh_baos %}
 {% with cb=canh_baos.0 %}
 <div class="warning-banner {% if cb.muc_canh_bao == 'muc3' %}danger{% elif cb.muc_canh_bao == 'muc2' %}danger{% endif %} mb-4">
-    <div class="warn-icon">⚠️</div>
+    <div class="warn-icon"></div>
     <div class="warn-text">
         <div class="warn-title">{{ cb.get_muc_canh_bao_display }} - Học kỳ {{ cb.hoc_ky }}</div>
         <div class="warn-desc">{{ cb.ly_do }} — <a href="{% url 'academic_warnings:canhbao_list' %}" style="color:inherit;text-decoration:underline">Xem chi tiết</a></div>
@@ -18,7 +18,7 @@
 <div class="grid-2 mb-4">
     <!-- Biểu đồ ĐTBCHK theo học kỳ -->
     <div class="card">
-        <div class="card-header"><span class="card-title">📈 ĐTBCHK theo học kỳ</span></div>
+        <div class="card-header"><span class="card-title">ĐTBCHK theo học kỳ</span></div>
         <div class="card-body">
             <div class="chart-container" style="height:220px">
                 <canvas id="gpaChart"></canvas>
@@ -28,7 +28,7 @@
 
     <!-- Phân phối điểm -->
     <div class="card">
-        <div class="card-header"><span class="card-title">🎯 Phân phối điểm chữ</span></div>
+        <div class="card-header"><span class="card-title">Phân phối điểm chữ</span></div>
         <div class="card-body">
             <div class="chart-container" style="height:220px">
                 <canvas id="diemChart"></canvas>
@@ -40,7 +40,7 @@
 <!-- Kết quả gần nhất -->
 <div class="card">
     <div class="card-header">
-        <span class="card-title">📝 Kết quả học tập gần nhất</span>
+        <span class="card-title">Kết quả học tập gần nhất</span>
         <a href="{% url 'results:ketqua_list' %}" class="btn btn-sm btn-secondary">Xem tất cả</a>
     </div>
     <div class="card-body" style="padding:0">
@@ -106,7 +106,7 @@ new Chart(document.getElementById('diemChart'), {
     data: {
         labels: diemLabels,
         datasets: [{
-            label: 'Số môn',
+            label: 'Số điểm',
             data: diemData,
             backgroundColor: colors,
             borderRadius: 6,

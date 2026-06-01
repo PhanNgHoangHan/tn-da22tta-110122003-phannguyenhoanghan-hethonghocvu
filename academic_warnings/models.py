@@ -1,4 +1,5 @@
 from django.db import models
+from django.conf import settings
 from students.models import SinhVien, HocKy
 
 
@@ -8,9 +9,7 @@ class CanhBaoHocVu(models.Model):
         ('buoc_thoi_hoc', 'Buộc thôi học'),
     ]
     TRANG_THAI_CHOICES = [
-        ('moi', 'Mới'),
-        ('da_thong_bao', 'Đã thông báo'),
-        ('dang_xu_ly', 'Đang xử lý'),
+        ('chua_xu_ly', 'Chưa xử lý'),
         ('da_xu_ly', 'Đã xử lý'),
     ]
     sinh_vien = models.ForeignKey(SinhVien, on_delete=models.CASCADE,
@@ -22,8 +21,15 @@ class CanhBaoHocVu(models.Model):
     so_lan_canh_bao = models.PositiveSmallIntegerField(default=1, verbose_name='Lần cảnh báo thứ')
     ngay_tao = models.DateTimeField(auto_now_add=True, verbose_name='Ngày tạo')
     trang_thai = models.CharField(max_length=20, choices=TRANG_THAI_CHOICES,
-                                   default='moi', verbose_name='Trạng thái')
+                                   default='chua_xu_ly', verbose_name='Trạng thái')
     ghi_chu = models.TextField(blank=True, verbose_name='Ghi chú xử lý')
+    da_an = models.BooleanField(default=False, verbose_name='Đã ẩn khỏi danh sách')
+    nguoi_dung_an = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='canh_bao_da_an',
+        verbose_name='Người dùng đã ẩn'
+    )
 
     class Meta:
         verbose_name = 'Cảnh báo học vụ'

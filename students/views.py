@@ -26,10 +26,14 @@ def role_required(*roles):
 # ---- Sinh viên ----
 @login_required
 def sinhvien_list(request):
-    qs = SinhVien.objects.select_related('nganh', 'covan').all()
+    qs = SinhVien.objects.select_related('nganh', 'covan', 'lop').all()
     q = request.GET.get('q', '')
     trang_thai = request.GET.get('trang_thai', '')
+    
+    # Lấy các bộ lọc phân cấp
+    khoa = request.GET.get('khoa', '')
     nganh_id = request.GET.get('nganh', '')
+    lop_id = request.GET.get('lop', '')
 
     if request.user.is_sinhvien:
         try:
@@ -38,18 +42,44 @@ def sinhvien_list(request):
             qs = qs.none()
     elif request.user.is_covan:
         qs = qs.filter(lop__covan=request.user)
+        # Giữ nguyên bộ lọc cố vấn
+        if nganh_id:
+            qs = qs.filter(nganh_id=nganh_id)
+    else:
+        # Đối với giáo vụ / admin: Lọc phân cấp thông minh
+        if khoa:
+            qs = qs.filter(nganh__khoa=khoa)
+        if nganh_id:
+            qs = qs.filter(nganh_id=nganh_id)
+        if lop_id:
+            qs = qs.filter(lop_id=lop_id)
 
     if q:
         qs = qs.filter(Q(mssv__icontains=q) | Q(ho_ten__icontains=q) | Q(lop__ten_lop__icontains=q))
     if trang_thai:
         qs = qs.filter(trang_thai=trang_thai)
-    if nganh_id:
-        qs = qs.filter(nganh_id=nganh_id)
 
+    # Dữ liệu cho bộ lọc
     nganhs = Nganh.objects.all()
+    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
+    lops = []
+    if nganh_id:
+        from .models import Lop
+        lops = Lop.objects.filter(nganh_id=nganh_id)
+    
+    if khoa:
+        nganhs = nganhs.filter(khoa=khoa)
+
     return render(request, 'students/sinhvien_list.html', {
-        'sinhviens': qs, 'nganhs': nganhs, 'q': q,
-        'trang_thai': trang_thai, 'nganh_id': nganh_id,
+        'sinhviens': qs, 
+        'nganhs': nganhs, 
+        'khoas': khoas,
+        'lops': lops,
+        'q': q,
+        'trang_thai': trang_thai, 
+        'selected_khoa': khoa,
+        'nganh_id': nganh_id,
+        'selected_lop': lop_id,
     })
 
 
@@ -335,20 +365,55 @@ def import_sinhvien(request):
             User = get_user_model()
 
             for row in rows_data:
-                mssv = str(row.get('mssv', '')).strip()
-                if not mssv:
+                if not row:
+                    continue
+                mssv_val = row.get('mssv')
+                if mssv_val is None:
+                    continue
+                mssv = str(mssv_val).strip()
+                if not mssv or mssv.lower() == 'none':
                     continue
                 try:
+                    ma_nganh_val = row.get('ma_nganh')
+                    ma_nganh = str(ma_nganh_val).strip() if ma_nganh_val is not None else 'KT'
+                    if not ma_nganh or ma_nganh.lower() == 'none':
+                        ma_nganh = 'KT'
+
+                    ten_nganh_val = row.get('ten_nganh')
+                    ten_nganh = str(ten_nganh_val).strip() if ten_nganh_val is not None else 'Chưa xác định'
+                    if not ten_nganh or ten_nganh.lower() == 'none':
+                        ten_nganh = 'Chưa xác định'
+
+                    ho_ten_val = row.get('ho_ten')
+                    ho_ten = str(ho_ten_val).strip() if ho_ten_val is not None else ''
+                    if not ho_ten or ho_ten.lower() == 'none':
+                        continue
+
+                    email_val = row.get('email')
+                    email = str(email_val).strip() if email_val is not None else ''
+                    if email.lower() == 'none':
+                        email = ''
+
+                    khoa_val = row.get('khoa')
+                    khoa = str(khoa_val).strip() if khoa_val is not None else ''
+                    if khoa.lower() == 'none':
+                        khoa = ''
+
+                    trang_thai_val = row.get('trang_thai')
+                    trang_thai = str(trang_thai_val).strip() if trang_thai_val is not None else 'dang_hoc'
+                    if not trang_thai or trang_thai.lower() == 'none':
+                        trang_thai = 'dang_hoc'
+
                     nganh, _ = Nganh.objects.get_or_create(
-                        ma_nganh=str(row.get('ma_nganh', 'KT')).strip(),
-                        defaults={'ten_nganh': str(row.get('ten_nganh', 'Chưa xác định')).strip()}
+                        ma_nganh=ma_nganh,
+                        defaults={'ten_nganh': ten_nganh}
                     )
                     # Tự tạo tài khoản: username = mssv, password = mssv
                     sv_user, user_created = User.objects.get_or_create(
                         username=mssv,
                         defaults={
-                            'full_name': str(row.get('ho_ten', '')).strip(),
-                            'email': str(row.get('email', '') or '').strip(),
+                            'full_name': ho_ten,
+                            'email': email,
                             'role': 'sinhvien',
                         }
                     )
@@ -359,11 +424,11 @@ def import_sinhvien(request):
                     sv, _ = SinhVien.objects.update_or_create(
                         mssv=mssv,
                         defaults={
-                            'ho_ten': str(row.get('ho_ten', '')).strip(),
-                            'email': str(row.get('email', '') or '').strip(),
-                            'khoa': str(row.get('khoa', '') or '').strip(),
+                            'ho_ten': ho_ten,
+                            'email': email,
+                            'khoa': khoa,
                             'nganh': nganh,
-                            'trang_thai': str(row.get('trang_thai', 'dang_hoc') or 'dang_hoc').strip(),
+                            'trang_thai': trang_thai,
                             'user': sv_user,
                         }
                     )
@@ -388,6 +453,98 @@ def import_sinhvien(request):
         except Exception as e:
             messages.error(request, f'Lỗi đọc file: {e}')
     return render(request, 'students/import.html', {'form': form, 'title': 'Import sinh viên', 'errors': errors})
+
+
+@login_required
+@role_required('giaovu', 'admin')
+def import_monhoc(request):
+    form = ImportCSVForm(request.POST or None, request.FILES or None)
+    errors = []
+    if request.method == 'POST' and form.is_valid():
+        f = request.FILES['file']
+        name = f.name.lower()
+        count = 0
+        try:
+            if name.endswith('.csv'):
+                decoded = f.read().decode('utf-8-sig')
+                reader = csv.DictReader(io.StringIO(decoded))
+                rows_data = list(reader)
+            elif name.endswith(('.xlsx', '.xls')):
+                wb = openpyxl.load_workbook(f)
+                ws = wb.active
+                headers = [cell.value for cell in ws[1]]
+                rows_data = [dict(zip(headers, row)) for row in ws.iter_rows(min_row=2, values_only=True)]
+            else:
+                messages.error(request, 'Định dạng file không hỗ trợ.')
+                return render(request, 'students/import_monhoc.html', {'form': form, 'title': 'Import môn học', 'errors': errors})
+
+            for row in rows_data:
+                if not row:
+                    continue
+                ma_mh_val = row.get('ma_mh')
+                if ma_mh_val is None:
+                    continue
+                ma_mh = str(ma_mh_val).strip()
+                if not ma_mh or ma_mh.lower() == 'none':
+                    continue
+                try:
+                    ten_mh_val = row.get('ten_mh')
+                    ten_mh = str(ten_mh_val).strip() if ten_mh_val is not None else ''
+                    if not ten_mh or ten_mh.lower() == 'none':
+                        continue
+
+                    so_tc_val = row.get('so_tc')
+                    if so_tc_val is not None:
+                        try:
+                            so_tc = int(float(str(so_tc_val).strip()))
+                        except ValueError:
+                            so_tc = 3
+                    else:
+                        so_tc = 3
+
+                    loai_val = row.get('loai')
+                    loai = str(loai_val).strip() if loai_val is not None else 'bat_buoc'
+                    if not loai or loai.lower() == 'none':
+                        loai = 'bat_buoc'
+                    
+                    # Convert to standard choices value
+                    loai_map = {
+                        'bat_buoc': 'bat_buoc',
+                        'bắt buộc': 'bat_buoc',
+                        'tu_chon': 'tu_chon',
+                        'tự chọn': 'tu_chon',
+                        'dai_cuong': 'dai_cuong',
+                        'đại cương': 'dai_cuong',
+                        'chuyen_nganh': 'chuyen_nganh',
+                        'chuyên ngành': 'chuyen_nganh',
+                    }
+                    loai = loai_map.get(loai.lower(), loai)
+
+                    mo_ta_val = row.get('mo_ta')
+                    mo_ta = str(mo_ta_val).strip() if mo_ta_val is not None else ''
+                    if mo_ta.lower() == 'none':
+                        mo_ta = ''
+
+                    MonHoc.objects.update_or_create(
+                        ma_mh=ma_mh,
+                        defaults={
+                            'ten_mh': ten_mh,
+                            'so_tc': so_tc,
+                            'loai': loai,
+                            'mo_ta': mo_ta,
+                        }
+                    )
+                    count += 1
+                except Exception as e:
+                    errors.append(f"Mã MH {ma_mh}: {e}")
+
+            messages.success(request, f'Import thành công {count} môn học.')
+            if errors:
+                messages.warning(request, f'{len(errors)} dòng lỗi: ' + '; '.join(errors[:5]))
+            return redirect('students:monhoc_list')
+        except Exception as e:
+            messages.error(request, f'Lỗi đọc file: {e}')
+    return render(request, 'students/import_monhoc.html', {'form': form, 'title': 'Import môn học', 'errors': errors})
 
 
 # ---- Export Excel ----
