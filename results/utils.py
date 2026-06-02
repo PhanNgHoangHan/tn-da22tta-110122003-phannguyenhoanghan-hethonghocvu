@@ -29,6 +29,40 @@ Buộc thôi học: số lần cảnh báo liên tiếp > 2 lần.
 """
 
 
+import unicodedata
+
+def remove_accents(input_str):
+    if not input_str:
+        return ""
+    # Loại bỏ khoảng trắng thừa ở hai đầu và thu gọn nhiều khoảng trắng liên tiếp
+    input_str = " ".join(input_str.strip().split())
+    input_str = unicodedata.normalize('NFC', input_str).lower()
+    
+    # Vietnamese tones and diacritics mapping
+    mapping = {
+        'à': 'a', 'á': 'a', 'ả': 'a', 'ã': 'a', 'ạ': 'a',
+        'ă': 'a', 'ằ': 'a', 'ắ': 'a', 'ẳ': 'a', 'ẵ': 'a', 'ặ': 'a',
+        'â': 'a', 'ầ': 'a', 'ấ': 'a', 'ẩ': 'a', 'ẫ': 'a', 'ậ': 'a',
+        'đ': 'd',
+        'è': 'e', 'é': 'e', 'ẻ': 'e', 'ẽ': 'e', 'ẹ': 'e',
+        'ê': 'e', 'ề': 'e', 'ế': 'e', 'ể': 'e', 'ễ': 'e', 'ệ': 'e',
+        'ì': 'i', 'í': 'i', 'ỉ': 'i', 'ĩ': 'i', 'ị': 'i',
+        'ò': 'o', 'ó': 'o', 'ỏ': 'o', 'õ': 'o', 'ọ': 'o',
+        'ô': 'o', 'ồ': 'o', 'ố': 'o', 'ổ': 'o', 'ỗ': 'o', 'ộ': 'o',
+        'ơ': 'o', 'ờ': 'o', 'ớ': 'o', 'ở': 'o', 'ỡ': 'o', 'ợ': 'o',
+        'ù': 'u', 'ú': 'u', 'ủ': 'u', 'ũ': 'u', 'ụ': 'u',
+        'ư': 'u', 'ừ': 'u', 'ứ': 'u', 'ử': 'u', 'ữ': 'u', 'ự': 'u',
+        'ỳ': 'y', 'ý': 'y', 'ỷ': 'y', 'ỹ': 'y', 'ỵ': 'y',
+    }
+    
+    res = []
+    for c in input_str:
+        res.append(mapping.get(c, c))
+    
+    decomposed = unicodedata.normalize('NFD', "".join(res))
+    return "".join([c for c in decomposed if not unicodedata.combining(c)])
+
+
 # ─── Thang điểm môn học ────────────────────────────────────────────────────
 
 def diem_chu(diem_10):
@@ -267,14 +301,14 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
         if tc_no_dong > 24:
             ly_do_a.append(f'TC nợ đọng từ đầu khóa {tc_no_dong} TC > 24 TC')
         if ly_do_a:
-            vi_pham.append('a) ' + '; '.join(ly_do_a))
+            vi_pham.append('; '.join(ly_do_a))
 
     # ── Điều kiện b ──────────────────────────────────────────────────────
     if tc_hk > 0:
         nguong_hk = 0.80 if hk_dau else 1.00
         if dtbchk_10 < nguong_hk:
             vi_pham.append(
-                f'b) ĐTBCHK {dtbchk_10:.2f} < {nguong_hk} '
+                f'ĐTBCHK {dtbchk_10:.2f} < {nguong_hk} '
                 f'({"HK đầu khóa" if hk_dau else "HK tiếp theo"})'
             )
 
@@ -282,17 +316,21 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
     nguong_ctl = {1: 1.20, 2: 1.40, 3: 1.60, 4: 1.80}.get(min(nam_hoc, 4), 1.80)
     if dtbctl_10 < nguong_ctl:
         vi_pham.append(
-            f'c) ĐTBCTL {dtbctl_10:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
+            f'ĐTBCTL {dtbctl_10:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
         )
 
     # ── Điều kiện d ──────────────────────────────────────────────────────
     if khong_dang_ky:
-        vi_pham.append('d) Không đăng ký học trong HK chính mà không được phép')
+        vi_pham.append('Không đăng ký học trong HK chính mà không được phép')
 
     if not vi_pham:
         return False, ''
 
-    return True, '; '.join(vi_pham)
+    if len(vi_pham) == 1:
+        return True, vi_pham[0]
+
+    vi_pham_numbered = [f"Lý do {i+1}: {vp}" for i, vp in enumerate(vi_pham)]
+    return True, '; '.join(vi_pham_numbered)
 
 
 # ─── Thống kê ──────────────────────────────────────────────────────────────
@@ -353,7 +391,7 @@ def xac_dinh_muc_canh_bao(sinh_vien, hoc_ky, so_lan_lien_tiep):
 
     # Điều kiện 1: Số lần cảnh báo học tập vượt quá 2 (tức là cảnh báo đến lần thứ 3)
     if so_lan_lien_tiep > 2:
-        return 'buoc_thoi_hoc', f'Đã bị cảnh báo {so_lan_lien_tiep - 1} lần liên tiếp.'
+        return 'buoc_thoi_hoc', f'Bị cảnh báo học vụ {so_lan_lien_tiep} lần liên tiếp (Buộc thôi học).'
 
     # Điều kiện 2: Đã bị cảnh báo học tập và học kỳ chính kế tiếp có điểm trung bình chung học kỳ dưới 1,00 theo hệ 4.
     if hoc_ky.ky in ['1', '2']:
@@ -369,7 +407,7 @@ def xac_dinh_muc_canh_bao(sinh_vien, hoc_ky, so_lan_lien_tiep):
                 # Tính ĐTBCHK hệ 4 học kỳ này
                 _, dtbchk_4, tong_tc_hk, _ = tinh_dtbchk(sinh_vien, hoc_ky)
                 if tong_tc_hk > 0 and dtbchk_4 < 1.00:
-                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở HK chính trước ({hk_truoc}) và ĐTBCHK hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00).'
+                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở HK chính trước ({hk_truoc}) và ĐTBCHK hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00) (Buộc thôi học).'
 
     return 'canh_bao', ''
 
@@ -393,6 +431,32 @@ def dong_bo_canh_bao_sinh_vien(sinh_vien):
         if co_canh_bao:
             so_lan_lien_tiep = dem_canh_bao_lien_tiep(sinh_vien, hk) + 1
             muc, ly_do_bo_sung = xac_dinh_muc_canh_bao(sinh_vien, hk, so_lan_lien_tiep)
+            
+            # Nếu có từ 3 lần cảnh báo liên tiếp trở lên, tổng hợp lý do đầy đủ của các lần
+            if so_lan_lien_tiep >= 3:
+                import re
+                def clean_reason(text):
+                    if not text:
+                        return ''
+                    # Bỏ các prefix 'Lý do X:' lồng nhau
+                    text = re.sub(r'(?:^|;\s*)L\u00fd do \d+:\s*', lambda m: '; ' if m.group().startswith(';') else '', text)
+                    return text.strip()
+
+                reasons_list = []
+                # Lấy lại các học kỳ cảnh báo trước đó của sinh viên này trong chuỗi liên tiếp
+                prev_cbs = CanhBaoHocVu.objects.filter(
+                    sinh_vien=sinh_vien, 
+                    so_lan_canh_bao__lt=so_lan_lien_tiep
+                ).order_by('so_lan_canh_bao')
+                
+                for prev_cb in prev_cbs:
+                    _, r_raw = kiem_tra_canh_bao(sinh_vien, prev_cb.hoc_ky)
+                    reasons_list.append(f"Lần {prev_cb.so_lan_canh_bao} ({prev_cb.hoc_ky}): {clean_reason(r_raw)}")
+                
+                # Thêm lý do của lần hiện tại
+                reasons_list.append(f"Lần {so_lan_lien_tiep} ({hk}): {clean_reason(ly_do)}")
+                ly_do = "; ".join(reasons_list)
+
             if ly_do_bo_sung:
                 ly_do = ly_do_bo_sung + ' ' + ly_do
 

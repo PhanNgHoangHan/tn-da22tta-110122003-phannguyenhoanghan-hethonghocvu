@@ -196,10 +196,17 @@ def dashboard_giaovu(request):
 @login_required
 def bao_cao(request):
     """Trang báo cáo & thống kê."""
-    hockys = HocKy.objects.all()
+    from students.models import Nganh, Lop
+    import re
+
+    hockys = HocKy.objects.all().order_by('-nam_hoc', '-ky')
     nganhs = Nganh.objects.all()
+    
     hk_id = request.GET.get('hoc_ky', '')
     nganh_id = request.GET.get('nganh', '')
+    khoa = request.GET.get('khoa', '')
+    lop_id = request.GET.get('lop', '')
+    khoa_hoc = request.GET.get('khoa_hoc', '')
 
     qs_sv = SinhVien.objects.all()
     qs_kq = KetQuaHocTap.objects.select_related('sinh_vien', 'mon_hoc', 'hoc_ky')
@@ -213,14 +220,32 @@ def bao_cao(request):
     if hk_id:
         qs_kq = qs_kq.filter(hoc_ky_id=hk_id)
         qs_cb = qs_cb.filter(hoc_ky_id=hk_id)
+
+    if khoa_hoc:
+        cohort_suffix = khoa_hoc[-2:]
+        qs_sv = qs_sv.filter(lop__ten_lop__contains=cohort_suffix)
+        qs_kq = qs_kq.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
+        qs_cb = qs_cb.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
+    if khoa:
+        qs_sv = qs_sv.filter(nganh__khoa=khoa)
+        qs_kq = qs_kq.filter(sinh_vien__nganh__khoa=khoa)
+        qs_cb = qs_cb.filter(sinh_vien__nganh__khoa=khoa)
     if nganh_id:
         qs_sv = qs_sv.filter(nganh_id=nganh_id)
         qs_kq = qs_kq.filter(sinh_vien__nganh_id=nganh_id)
+        qs_cb = qs_cb.filter(sinh_vien__nganh_id=nganh_id)
+    if lop_id:
+        qs_sv = qs_sv.filter(lop_id=lop_id)
+        qs_kq = qs_kq.filter(sinh_vien__lop_id=lop_id)
+        qs_cb = qs_cb.filter(sinh_vien__lop_id=lop_id)
 
-    phan_phoi = get_phan_phoi_diem()
-    if hk_id:
-        hk = HocKy.objects.filter(pk=hk_id).first()
-        phan_phoi = get_phan_phoi_diem(hoc_ky=hk)
+    # Tính phân phối điểm chữ động từ qs_kq đã lọc
+    phan_phoi = {'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'D+': 0, 'D': 0, 'F': 0}
+    from results.utils import diem_chu
+    for diem_tk in qs_kq.values_list('diem_tk', flat=True):
+        chu = diem_chu(diem_tk)
+        if chu in phan_phoi:
+            phan_phoi[chu] += 1
 
     # Thống kê tổng hợp
     stats = {
@@ -230,13 +255,13 @@ def bao_cao(request):
         'sv_canh_bao_2': qs_cb.filter(muc_canh_bao='canh_bao', so_lan_canh_bao=2).count(),
         'sv_canh_bao_3': qs_cb.filter(muc_canh_bao='buoc_thoi_hoc').count(),
         'total_kq': qs_kq.count(),
-        'kq_dat': sum(1 for kq in qs_kq if kq.dat),
+        'kq_dat': sum(1 for kq in qs_kq if kq.diem_tk is not None and kq.diem_tk >= 4.0),
     }
 
     # Biểu đồ: Cảnh báo theo học kỳ
     hockys_chart = HocKy.objects.order_by('nam_hoc', 'ky')[:10]
     cb_hk_labels = [str(hk) for hk in hockys_chart]
-    cb_hk_data = [CanhBaoHocVu.objects.filter(hoc_ky=hk).count() for hk in hockys_chart]
+    cb_hk_data = [qs_cb.filter(hoc_ky=hk).count() for hk in hockys_chart]
 
     # Biểu đồ: Sinh viên theo ngành
     nganh_stats = qs_sv.values('nganh__ten_nganh').annotate(count=Count('id')).order_by('-count')[:8]
@@ -244,9 +269,40 @@ def bao_cao(request):
     # Biểu đồ: Trạng thái sinh viên
     tt_stats = qs_sv.values('trang_thai').annotate(count=Count('id'))
 
+    # Dữ liệu cho bộ lọc phân cấp (để hiển thị dropdown)
+    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
+    
+    # Lấy danh sách khóa học duy nhất từ các lớp
+    unique_years = set()
+    for name in Lop.objects.values_list('ten_lop', flat=True):
+        m = re.search(r'\d{2}', name)
+        if m:
+            unique_years.add("20" + m.group())
+    khoa_hocs = sorted(list(unique_years), reverse=True)
+
+    lops = Lop.objects.all()
+    if request.user.is_covan:
+        lops = lops.filter(covan=request.user)
+    if nganh_id:
+        lops = lops.filter(nganh_id=nganh_id)
+    if khoa_hoc:
+        cohort_suffix = khoa_hoc[-2:]
+        lops = lops.filter(ten_lop__contains=cohort_suffix)
+        
+    if khoa:
+        nganhs = nganhs.filter(khoa=khoa)
+
     context = {
-        'hockys': hockys, 'nganhs': nganhs,
-        'hk_id': hk_id, 'nganh_id': nganh_id,
+        'hockys': hockys, 
+        'nganhs': nganhs,
+        'khoas': khoas,
+        'lops': lops,
+        'khoa_hocs': khoa_hocs,
+        'hk_id': hk_id, 
+        'nganh_id': nganh_id,
+        'selected_khoa': khoa,
+        'selected_lop': lop_id,
+        'selected_khoa_hoc': khoa_hoc,
         'stats': stats,
         'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
         'phan_phoi_data': json.dumps(list(phan_phoi.values())),

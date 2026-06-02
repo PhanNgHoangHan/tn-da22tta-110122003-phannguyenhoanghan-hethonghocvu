@@ -45,8 +45,13 @@ def ketqua_list(request):
     khoa = request.GET.get('khoa', '')
     nganh_id = request.GET.get('nganh', '')
     lop_id = request.GET.get('lop', '')
+    khoa_hoc = request.GET.get('khoa_hoc', '')
 
-    if not request.user.is_sinhvien and not request.user.is_covan:
+    if not request.user.is_sinhvien:
+        # Áp dụng bộ lọc phân cấp cho cả Giáo vụ và Cố vấn
+        if khoa_hoc:
+            cohort_suffix = khoa_hoc[-2:]
+            qs = qs.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
         if khoa:
             qs = qs.filter(sinh_vien__nganh__khoa=khoa)
         if nganh_id:
@@ -187,13 +192,29 @@ def ketqua_list(request):
                 theo_lop[ten_lop][nam][hk_ten] = rows
 
     # Dữ liệu cho bộ lọc phân cấp (để hiển thị dropdown)
-    from students.models import Nganh
+    from students.models import Nganh, Lop
+    import re
+    
     nganhs = Nganh.objects.all()
     khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
-    lops = []
+    
+    # Lấy danh sách khóa học duy nhất từ các lớp
+    unique_years = set()
+    for name in Lop.objects.values_list('ten_lop', flat=True):
+        m = re.search(r'\d{2}', name)
+        if m:
+            unique_years.add("20" + m.group())
+    khoa_hocs = sorted(list(unique_years), reverse=True)
+
+    lops = Lop.objects.all()
+    if request.user.is_covan:
+        lops = lops.filter(covan=request.user)
     if nganh_id:
-        from students.models import Lop
-        lops = Lop.objects.filter(nganh_id=nganh_id)
+        lops = lops.filter(nganh_id=nganh_id)
+    if khoa_hoc:
+        cohort_suffix = khoa_hoc[-2:]
+        lops = lops.filter(ten_lop__contains=cohort_suffix)
+        
     if khoa:
         nganhs = nganhs.filter(khoa=khoa)
 
@@ -206,9 +227,11 @@ def ketqua_list(request):
         'nganhs': nganhs,
         'khoas': khoas,
         'lops': lops,
+        'khoa_hocs': khoa_hocs,
         'selected_khoa': khoa,
         'nganh_id': nganh_id,
         'selected_lop': lop_id,
+        'selected_khoa_hoc': khoa_hoc,
     })
 
 

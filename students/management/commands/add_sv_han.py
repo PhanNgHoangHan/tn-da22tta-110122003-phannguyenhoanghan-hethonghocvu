@@ -205,7 +205,7 @@ class Command(BaseCommand):
                 so_lan_lien_tiep += 1
                 muc = 'buoc_thoi_hoc' if so_lan_lien_tiep > 2 else 'canh_bao'
                 if so_lan_lien_tiep > 2:
-                    ly_do = f'Đã bị cảnh báo {so_lan_lien_tiep - 1} lần liên tiếp. ' + ly_do
+                    ly_do = f'Bị cảnh báo học vụ {so_lan_lien_tiep} lần liên tiếp (Buộc thôi học). ' + ly_do
                 CanhBaoHocVu.objects.update_or_create(
                     sinh_vien=sv, hoc_ky=hk,
                     defaults={

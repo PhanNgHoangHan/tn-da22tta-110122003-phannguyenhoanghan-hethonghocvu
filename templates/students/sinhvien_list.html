@@ -25,8 +25,17 @@
                 <option value="tot_nghiep" {% if trang_thai == 'tot_nghiep' %}selected{% endif %}>Tốt nghiệp</option>
             </select>
 
-            {% if not request.user.is_sinhvien and not request.user.is_covan %}
-            <!-- Bộ lọc phân cấp thông minh dành cho Giáo vụ / Admin -->
+            {% if not request.user.is_sinhvien %}
+            <select name="khoa_hoc" class="form-select" style="max-width:150px" onchange="this.form.submit()">
+                <option value="">-- Tất cả Khóa --</option>
+                {% for kh in khoa_hocs %}
+                <option value="{{ kh }}" {% if selected_khoa_hoc == kh %}selected{% endif %}>Khóa {{ kh }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
+            {% if not request.user.is_sinhvien %}
+            <!-- Bộ lọc phân cấp thông minh dành cho Giáo vụ / Admin / Cố vấn -->
             <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px">
                 <option value="">-- Tất cả Khoa --</option>
                 {% for k in khoas %}
@@ -47,12 +56,6 @@
                 <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
                 {% endfor %}
             </select>
-            {% else %}
-            <!-- Cố vấn chỉ lọc theo Ngành -->
-            <select name="nganh" class="form-select" style="max-width:200px">
-                <option value="">-- Ngành --</option>
-                {% for n in nganhs %}<option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>{% endfor %}
-            </select>
             {% endif %}
 
             <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
@@ -63,7 +66,7 @@
 
 <div class="card">
     <div class="card-header">
-        <span class="card-title">Tổng: {{ sinhviens|length }} sinh viên</span>
+        <span class="card-title">Danh sách sinh viên đang học và quản lý</span>
     </div>
     <div class="card-body" style="padding:0">
         <div class="table-responsive">
@@ -101,12 +104,15 @@
             </tbody>
         </table>
         </div>
+        <div style="padding: 12px 20px; font-size: 13.5px; border-top: 1px solid var(--border); color: var(--text-secondary); font-weight: 500;">
+            Tổng cộng: <strong style="color: var(--text-primary);">{{ sinhviens|length }}</strong> sinh viên
+        </div>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-{% if not request.user.is_sinhvien and not request.user.is_covan %}
+{% if not request.user.is_sinhvien %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const khoaSelect = document.getElementById('filter-khoa');

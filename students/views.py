@@ -34,19 +34,21 @@ def sinhvien_list(request):
     khoa = request.GET.get('khoa', '')
     nganh_id = request.GET.get('nganh', '')
     lop_id = request.GET.get('lop', '')
+    khoa_hoc = request.GET.get('khoa_hoc', '')
 
     if request.user.is_sinhvien:
         try:
             qs = qs.filter(user=request.user)
         except Exception:
             qs = qs.none()
-    elif request.user.is_covan:
-        qs = qs.filter(lop__covan=request.user)
-        # Giữ nguyên bộ lọc cố vấn
-        if nganh_id:
-            qs = qs.filter(nganh_id=nganh_id)
     else:
-        # Đối với giáo vụ / admin: Lọc phân cấp thông minh
+        if request.user.is_covan:
+            qs = qs.filter(lop__covan=request.user)
+        
+        # Áp dụng bộ lọc phân cấp cho cả Giáo vụ và Cố vấn
+        if khoa_hoc:
+            cohort_suffix = khoa_hoc[-2:]
+            qs = qs.filter(lop__ten_lop__contains=cohort_suffix)
         if khoa:
             qs = qs.filter(nganh__khoa=khoa)
         if nganh_id:
@@ -54,18 +56,42 @@ def sinhvien_list(request):
         if lop_id:
             qs = qs.filter(lop_id=lop_id)
 
-    if q:
-        qs = qs.filter(Q(mssv__icontains=q) | Q(ho_ten__icontains=q) | Q(lop__ten_lop__icontains=q))
     if trang_thai:
         qs = qs.filter(trang_thai=trang_thai)
 
+    if q:
+        from results.utils import remove_accents
+        q_clean = remove_accents(q)
+        qs = [
+            sv for sv in qs
+            if q_clean in remove_accents(sv.mssv)
+            or q_clean in remove_accents(sv.ho_ten)
+            or (sv.lop and q_clean in remove_accents(sv.lop.ten_lop))
+        ]
+
     # Dữ liệu cho bộ lọc
+    from .models import Lop
+    import re
+    
     nganhs = Nganh.objects.all()
     khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
-    lops = []
+    
+    # Lấy danh sách khóa học duy nhất từ các lớp
+    unique_years = set()
+    for name in Lop.objects.values_list('ten_lop', flat=True):
+        m = re.search(r'\d{2}', name)
+        if m:
+            unique_years.add("20" + m.group())
+    khoa_hocs = sorted(list(unique_years), reverse=True)
+
+    lops = Lop.objects.all()
+    if request.user.is_covan:
+        lops = lops.filter(covan=request.user)
     if nganh_id:
-        from .models import Lop
-        lops = Lop.objects.filter(nganh_id=nganh_id)
+        lops = lops.filter(nganh_id=nganh_id)
+    if khoa_hoc:
+        cohort_suffix = khoa_hoc[-2:]
+        lops = lops.filter(ten_lop__contains=cohort_suffix)
     
     if khoa:
         nganhs = nganhs.filter(khoa=khoa)
@@ -75,11 +101,13 @@ def sinhvien_list(request):
         'nganhs': nganhs, 
         'khoas': khoas,
         'lops': lops,
+        'khoa_hocs': khoa_hocs,
         'q': q,
         'trang_thai': trang_thai, 
         'selected_khoa': khoa,
         'nganh_id': nganh_id,
         'selected_lop': lop_id,
+        'selected_khoa_hoc': khoa_hoc,
     })
 
 
@@ -269,7 +297,13 @@ def monhoc_list(request):
     qs = MonHoc.objects.all()
     q = request.GET.get('q', '')
     if q:
-        qs = qs.filter(Q(ma_mh__icontains=q) | Q(ten_mh__icontains=q))
+        from results.utils import remove_accents
+        q_clean = remove_accents(q)
+        qs = [
+            mh for mh in qs
+            if q_clean in remove_accents(mh.ma_mh)
+            or q_clean in remove_accents(mh.ten_mh)
+        ]
     return render(request, 'students/monhoc_list.html', {'monhocs': qs, 'q': q})
 
 

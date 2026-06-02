@@ -185,7 +185,7 @@ class Command(BaseCommand):
                     # Nếu đã cảnh báo > 2 lần liên tiếp → buộc thôi học
                     if so_lan_lien_tiep > 2:
                         muc = 'buoc_thoi_hoc'
-                        ly_do = f'Đã bị cảnh báo {so_lan_lien_tiep - 1} lần liên tiếp. ' + ly_do
+                        ly_do = f'Bị cảnh báo học vụ {so_lan_lien_tiep} lần liên tiếp (Buộc thôi học). ' + ly_do
 
                     CanhBaoHocVu.objects.update_or_create(
                         sinh_vien=sv, hoc_ky=hk,

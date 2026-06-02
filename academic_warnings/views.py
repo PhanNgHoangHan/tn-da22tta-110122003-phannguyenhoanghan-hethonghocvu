@@ -13,37 +13,89 @@ from results.utils import kiem_tra_canh_bao, dem_canh_bao_lien_tiep, xac_dinh_mu
 def canhbao_list(request):
     qs = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky', 'sinh_vien__nganh', 'sinh_vien__lop').exclude(nguoi_dung_an=request.user)
 
-    if request.user.is_sinhvien:
-        qs = qs.filter(sinh_vien__user=request.user)
-    elif request.user.is_covan:
-        qs = qs.filter(sinh_vien__lop__covan=request.user)
-
     muc       = request.GET.get('muc', '')
     trang_thai = request.GET.get('trang_thai', '')
     hk_id     = request.GET.get('hoc_ky', '')
-    lop_id    = request.GET.get('lop', '')
     q         = request.GET.get('q', '')
+    
+    # Lấy các bộ lọc phân cấp
+    khoa = request.GET.get('khoa', '')
+    nganh_id = request.GET.get('nganh', '')
+    lop_id = request.GET.get('lop', '')
+    khoa_hoc = request.GET.get('khoa_hoc', '')
+
+    if request.user.is_sinhvien:
+        qs = qs.filter(sinh_vien__user=request.user)
+    else:
+        if request.user.is_covan:
+            qs = qs.filter(sinh_vien__lop__covan=request.user)
+        
+        # Áp dụng bộ lọc phân cấp cho cả Giáo vụ và Cố vấn
+        if khoa_hoc:
+            cohort_suffix = khoa_hoc[-2:]
+            qs = qs.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
+        if khoa:
+            qs = qs.filter(sinh_vien__nganh__khoa=khoa)
+        if nganh_id:
+            qs = qs.filter(sinh_vien__nganh_id=nganh_id)
+        if lop_id:
+            qs = qs.filter(sinh_vien__lop_id=lop_id)
 
     if muc:        qs = qs.filter(muc_canh_bao=muc)
     if trang_thai: qs = qs.filter(trang_thai=trang_thai)
     if hk_id:      qs = qs.filter(hoc_ky_id=hk_id)
-    if lop_id:     qs = qs.filter(sinh_vien__lop_id=lop_id)
-    if q:          qs = qs.filter(Q(sinh_vien__mssv__icontains=q) | Q(sinh_vien__ho_ten__icontains=q))
+    if q:
+        from results.utils import remove_accents
+        q_clean = remove_accents(q)
+        qs = [
+            cb for cb in qs
+            if q_clean in remove_accents(cb.sinh_vien.mssv)
+            or q_clean in remove_accents(cb.sinh_vien.ho_ten)
+        ]
 
-    hockys = HocKy.objects.all()
+    hockys = HocKy.objects.all().order_by('-nam_hoc', '-ky')
     
-    # Lấy danh sách lớp cho Giáo vụ / Admin lọc
-    from students.models import Lop
+    # Dữ liệu cho bộ lọc phân cấp (để hiển thị dropdown)
+    from students.models import Nganh, Lop
+    import re
+    
+    nganhs = Nganh.objects.all()
+    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
+    
+    # Lấy danh sách khóa học duy nhất từ các lớp
+    unique_years = set()
+    for name in Lop.objects.values_list('ten_lop', flat=True):
+        m = re.search(r'\d{2}', name)
+        if m:
+            unique_years.add("20" + m.group())
+    khoa_hocs = sorted(list(unique_years), reverse=True)
+
     lops = Lop.objects.all()
+    if request.user.is_covan:
+        lops = lops.filter(covan=request.user)
+    if nganh_id:
+        lops = lops.filter(nganh_id=nganh_id)
+    if khoa_hoc:
+        cohort_suffix = khoa_hoc[-2:]
+        lops = lops.filter(ten_lop__contains=cohort_suffix)
+        
+    if khoa:
+        nganhs = nganhs.filter(khoa=khoa)
 
     return render(request, 'academic_warnings/canhbao_list.html', {
         'canh_baos': qs, 
         'hockys': hockys,
+        'nganhs': nganhs,
+        'khoas': khoas,
         'lops': lops,
+        'khoa_hocs': khoa_hocs,
         'muc': muc, 
         'trang_thai': trang_thai, 
         'hk_id': hk_id, 
+        'selected_khoa': khoa,
+        'nganh_id': nganh_id,
         'selected_lop': lop_id,
+        'selected_khoa_hoc': khoa_hoc,
         'q': q,
     })
 
@@ -62,23 +114,8 @@ def canhbao_detail(request, pk):
 
 @login_required
 def canhbao_update_status(request, pk):
-    if request.user.is_sinhvien or request.user.is_covan:
-        messages.error(request, 'Bạn không có quyền cập nhật cảnh báo.')
-        return redirect('academic_warnings:canhbao_list')
-    cb = get_object_or_404(CanhBaoHocVu, pk=pk)
-    if request.user.is_covan and cb.sinh_vien.lop.covan != request.user:
-        messages.error(request, 'Bạn không có quyền cập nhật cảnh báo này.')
-        return redirect('academic_warnings:canhbao_list')
-    if request.method == 'POST':
-        cb.trang_thai = request.POST.get('trang_thai', cb.trang_thai)
-        cb.ghi_chu    = request.POST.get('ghi_chu', cb.ghi_chu)
-        cb.save()
-        if cb.muc_canh_bao == 'buoc_thoi_hoc':
-            cb.sinh_vien.trang_thai = 'dinh_chi'
-            cb.sinh_vien.save()
-        messages.success(request, 'Cập nhật trạng thái cảnh báo thành công.')
-        return redirect('academic_warnings:canhbao_list')
-    return render(request, 'academic_warnings/canhbao_update.html', {'cb': cb})
+    messages.error(request, 'Chức năng cập nhật cảnh báo đã bị vô hiệu hóa. Chỉ có thể xem cảnh báo.')
+    return redirect('academic_warnings:canhbao_list')
 
 
 
@@ -166,14 +203,14 @@ Phòng Giáo vụ - Đại học Trà Vinh
             )
             cb.trang_thai = 'da_xu_ly'
             cb.save()
-            messages.success(request, f'Đã gửi email thông báo thành công đến Sinh viên ({", ".join(recipient_list)}). Cảnh báo chuyển sang trạng thái Đã xử lý.')
+            messages.success(request, f'Đã gửi email thông báo thành công đến Sinh viên ({", ".join(recipient_list)}). Cảnh báo chuyển sang trạng thái Đã thông báo.')
         except Exception as e:
             messages.error(request, f'Lỗi khi gửi email: {e}')
     else:
         # Nếu không có email thì vẫn đổi trạng thái
         cb.trang_thai = 'da_xu_ly'
         cb.save()
-        messages.warning(request, 'Không tìm thấy địa chỉ email của sinh viên. Trạng thái cảnh báo vẫn được cập nhật thành Đã xử lý.')
+        messages.warning(request, 'Không tìm thấy địa chỉ email của sinh viên. Trạng thái cảnh báo vẫn được cập nhật thành Đã thông báo.')
         
     return redirect('academic_warnings:canhbao_detail', pk=pk)
 
@@ -200,7 +237,14 @@ def canhbao_gui_thong_bao_hang_loat(request):
     if muc:        qs = qs.filter(muc_canh_bao=muc)
     if hk_id:      qs = qs.filter(hoc_ky_id=hk_id)
     if lop_id:     qs = qs.filter(sinh_vien__lop_id=lop_id)
-    if q:          qs = qs.filter(Q(sinh_vien__mssv__icontains=q) | Q(sinh_vien__ho_ten__icontains=q))
+    if q:
+        from results.utils import remove_accents
+        q_clean = remove_accents(q)
+        qs = [
+            cb for cb in qs
+            if q_clean in remove_accents(cb.sinh_vien.mssv)
+            or q_clean in remove_accents(cb.sinh_vien.ho_ten)
+        ]
 
     # Send emails
     success_count = 0

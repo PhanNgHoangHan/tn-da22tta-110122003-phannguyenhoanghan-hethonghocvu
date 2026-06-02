@@ -9,8 +9,8 @@ class CanhBaoHocVu(models.Model):
         ('buoc_thoi_hoc', 'Buộc thôi học'),
     ]
     TRANG_THAI_CHOICES = [
-        ('chua_xu_ly', 'Chưa xử lý'),
-        ('da_xu_ly', 'Đã xử lý'),
+        ('chua_xu_ly', 'Chưa thông báo'),
+        ('da_xu_ly', 'Đã thông báo'),
     ]
     sinh_vien = models.ForeignKey(SinhVien, on_delete=models.CASCADE,
                                    related_name='canh_bao', verbose_name='Sinh viên')
