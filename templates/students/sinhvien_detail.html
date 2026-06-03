@@ -11,8 +11,10 @@
             <table style="width:100%;font-size:13.5px">
                 <tr><td style="color:#64748b;padding:6px 0;width:130px">MSSV</td><td><strong>{{ sv.mssv }}</strong></td></tr>
                 <tr><td style="color:#64748b;padding:6px 0">Họ tên</td><td>{{ sv.ho_ten }}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0">Ngành</td><td>{{ sv.nganh.ten_nganh|default:'-' }}</td></tr>
-                <tr><td style="color:#64748b;padding:6px 0">Khóa / Lớp</td><td>{{ sv.khoa }} / {{ sv.lop.ten_lop|default:'-' }}</td></tr>
+                <tr><td style="color:#64748b;padding:6px 0">Giới tính</td><td>{{ sv.get_gioi_tinh_display|default:'-' }}</td></tr>
+                <tr><td style="color:#64748b;padding:6px 0">Ngày sinh</td><td>{{ sv.ngay_sinh|date:"d/m/Y"|default:'-' }}</td></tr>
+                <tr><td style="color:#64748b;padding:6px 0">Ngành</td><td>{{ sv.nganh.ten_nganh|default:'-' }}{% if sv.khoa %} khóa {{ sv.khoa }}{% endif %}</td></tr>
+                <tr><td style="color:#64748b;padding:6px 0">Lớp</td><td>{{ sv.lop.ten_lop|default:'-' }}</td></tr>
                 <tr><td style="color:#64748b;padding:6px 0">Email</td><td>{{ sv.email|default:'-' }}</td></tr>
                 <tr><td style="color:#64748b;padding:6px 0">Cố vấn HT</td><td>{{ sv.ten_covan }}</td></tr>
                 <tr><td style="color:#64748b;padding:6px 0">Trạng thái</td>

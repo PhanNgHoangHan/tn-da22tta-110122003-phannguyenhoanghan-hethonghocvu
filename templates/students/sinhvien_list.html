@@ -92,10 +92,6 @@
                 </td>
                 <td>
                     <a href="{% url 'students:sinhvien_detail' sv.pk %}" class="btn btn-sm btn-secondary">Xem</a>
-                    {% if request.user.is_giaovu or request.user.is_admin %}
-                    <a href="{% url 'students:sinhvien_edit' sv.pk %}" class="btn btn-sm btn-warning">Sửa</a>
-                    <a href="{% url 'students:sinhvien_delete' sv.pk %}" class="btn btn-sm btn-danger">Xóa</a>
-                    {% endif %}
                 </td>
             </tr>
             {% empty %}

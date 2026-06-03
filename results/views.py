@@ -293,6 +293,27 @@ def ketqua_delete(request, pk):
     return render(request, 'students/confirm_delete.html', {'obj': kq, 'title': 'Xóa kết quả'})
 
 
+def parse_hoc_ky(value):
+    import re
+    if not value:
+        return None
+    val_str = str(value).strip().lower()
+    nam_hoc_match = re.search(r'\d{4}-\d{4}', val_str)
+    if not nam_hoc_match:
+        return None
+    nam_hoc = nam_hoc_match.group()
+    
+    if 'hè' in val_str or 'he' in val_str or 'hk3' in val_str or 'hk 3' in val_str or 'kỳ 3' in val_str or 'ky 3' in val_str:
+        ky = '3'
+    elif '2' in val_str:
+        ky = '2'
+    elif '1' in val_str:
+        ky = '1'
+    else:
+        ky = '1'
+    return ky, nam_hoc
+
+
 @login_required
 def import_diem(request):
     if request.user.is_sinhvien or request.user.is_covan:
@@ -301,9 +322,9 @@ def import_diem(request):
     form = ImportDiemForm(request.POST or None, request.FILES or None)
     errors = []
     if request.method == 'POST' and form.is_valid():
-        hoc_ky = form.cleaned_data['hoc_ky']
         f = request.FILES['file']
         count = 0
+        imported_hk_set = set()
         try:
             if f.name.lower().endswith('.csv'):
                 decoded = f.read().decode('utf-8-sig')
@@ -327,30 +348,64 @@ def import_diem(request):
                 if not mssv or mssv.lower() == 'none' or not ma_mh or ma_mh.lower() == 'none':
                     continue
                 try:
+                    # Lấy hoặc tự động tạo học kỳ
+                    hoc_ky_obj = None
+                    ky_val = row.get('ky') or row.get('kỳ') or row.get('ky_hoc')
+                    nam_hoc_val = row.get('nam_hoc') or row.get('năm học')
+                    
+                    if ky_val is not None and nam_hoc_val is not None:
+                        ky = str(ky_val).strip()
+                        nam_hoc = str(nam_hoc_val).strip()
+                        if ky in ('1', '2', '3'):
+                            pass
+                        elif 'hè' in ky.lower() or 'he' in ky.lower() or '3' in ky:
+                            ky = '3'
+                        elif '2' in ky:
+                            ky = '2'
+                        else:
+                            ky = '1'
+                        
+                        if nam_hoc:
+                            hoc_ky_obj, _ = HocKy.objects.get_or_create(ky=ky, nam_hoc=nam_hoc)
+                            
+                    if hoc_ky_obj is None:
+                        hoc_ky_str = row.get('hoc_ky') or row.get('học kỳ') or row.get('học kì') or row.get('hoc_ki')
+                        if hoc_ky_str:
+                            res = parse_hoc_ky(hoc_ky_str)
+                            if res:
+                                ky, nam_hoc = res
+                                hoc_ky_obj, _ = HocKy.objects.get_or_create(ky=ky, nam_hoc=nam_hoc)
+                                
+                    if hoc_ky_obj is None:
+                        raise Exception("Không xác định được học kỳ (cột 'hoc_ky' hoặc cột 'ky'/'nam_hoc')")
+
                     sv = SinhVien.objects.get(mssv=mssv)
                     mh = MonHoc.objects.get(ma_mh=ma_mh)
                     diem_qt  = float(row['diem_qt'])  if row.get('diem_qt')  not in (None, '', 'None') else None
                     diem_thi = float(row['diem_thi']) if row.get('diem_thi') not in (None, '', 'None') else None
                     diem_tk  = float(row['diem_tk'])  if row.get('diem_tk')  not in (None, '', 'None') else None
+                    
                     KetQuaHocTap.objects.update_or_create(
-                        sinh_vien=sv, mon_hoc=mh, hoc_ky=hoc_ky,
+                        sinh_vien=sv, mon_hoc=mh, hoc_ky=hoc_ky_obj,
                         lan_hoc=int(row.get('lan_hoc', 1) or 1),
                         defaults={'diem_qt': diem_qt, 'diem_thi': diem_thi, 'diem_tk': diem_tk}
                     )
+                    imported_hk_set.add(hoc_ky_obj)
                     count += 1
                 except Exception as e:
-                    errors.append(f"{row}: {e}")
+                    errors.append(f"MSSV {mssv}, Mã MH {ma_mh}: {e}")
 
-            # Kiểm tra cảnh báo cho tất cả SV trong HK sau khi import xong
-            for sv in SinhVien.objects.filter(ket_qua__hoc_ky=hoc_ky).distinct():
-                _xu_ly_canh_bao(sv, hoc_ky)
+            # Kiểm tra cảnh báo cho tất cả SV trong những học kỳ đã import
+            for hk in imported_hk_set:
+                for sv in SinhVien.objects.filter(ket_qua__hoc_ky=hk).distinct():
+                    _xu_ly_canh_bao(sv, hk)
 
             messages.success(request, f'Import thành công {count} kết quả.')
             if errors:
                 messages.warning(request, f'{len(errors)} lỗi: ' + '; '.join(errors[:5]))
             return redirect('results:ketqua_list')
         except Exception as e:
-            messages.error(request, f'Lỗi: {e}')
+            messages.error(request, f'Lỗi đọc file: {e}')
     return render(request, 'results/import_diem.html', {'form': form, 'errors': errors})
 
 

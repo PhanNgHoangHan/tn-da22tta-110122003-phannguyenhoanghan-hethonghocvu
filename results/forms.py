@@ -20,11 +20,6 @@ class KetQuaForm(forms.ModelForm):
 
 
 class ImportDiemForm(forms.Form):
-    hoc_ky = forms.ModelChoiceField(
-        queryset=HocKy.objects.all(),
-        widget=forms.Select(attrs={'class': 'form-select'}),
-        label='Học kỳ'
-    )
     file = forms.FileField(
         label='File CSV/Excel',
         widget=forms.FileInput(attrs={'class': 'form-control', 'accept': '.csv,.xlsx,.xls'})

@@ -271,24 +271,15 @@ def sinhvien_create(request):
 @login_required
 @role_required('giaovu', 'admin')
 def sinhvien_edit(request, pk):
-    sv = get_object_or_404(SinhVien, pk=pk)
-    form = SinhVienForm(request.POST or None, instance=sv)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'Cập nhật sinh viên thành công.')
-        return redirect('students:sinhvien_list')
-    return render(request, 'students/sinhvien_form.html', {'form': form, 'title': 'Chỉnh sửa sinh viên'})
+    messages.error(request, 'Chức năng sửa thông tin sinh viên đã bị vô hiệu hóa.')
+    return redirect('students:sinhvien_list')
 
 
 @login_required
 @role_required('giaovu', 'admin')
 def sinhvien_delete(request, pk):
-    sv = get_object_or_404(SinhVien, pk=pk)
-    if request.method == 'POST':
-        sv.delete()
-        messages.success(request, 'Xóa sinh viên thành công.')
-        return redirect('students:sinhvien_list')
-    return render(request, 'students/confirm_delete.html', {'obj': sv, 'title': 'Xóa sinh viên'})
+    messages.error(request, 'Chức năng xóa sinh viên đã bị vô hiệu hóa.')
+    return redirect('students:sinhvien_list')
 
 
 # ---- Môn học ----
@@ -372,6 +363,32 @@ def hocky_edit(request, pk):
 
 
 # ---- Import CSV ----
+def parse_date(date_val):
+    from datetime import datetime, date
+    if not date_val:
+        return None
+    if isinstance(date_val, (datetime, date)):
+        return date_val
+    date_str = str(date_val).strip()
+    if date_str.lower() in ('none', ''):
+        return None
+    
+    formats = [
+        '%d/%m/%Y',
+        '%Y-%m-%d',
+        '%d-%m-%Y',
+        '%m/%d/%Y',
+        '%d/%m/%y',
+        '%Y/%m/%d',
+    ]
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
 @login_required
 @role_required('giaovu', 'admin')
 def import_sinhvien(request):
@@ -428,20 +445,68 @@ def import_sinhvien(request):
                     if email.lower() == 'none':
                         email = ''
 
+                    # gioi_tinh
+                    gioi_tinh_val = row.get('gioi_tinh') or row.get('giới tính') or row.get('gioitinh') or row.get('gender')
+                    gioi_tinh = ''
+                    if gioi_tinh_val:
+                        gt_str = str(gioi_tinh_val).strip().lower()
+                        if gt_str in ('nam', 'm', 'male'):
+                            gioi_tinh = 'Nam'
+                        elif gt_str in ('nữ', 'nu', 'female', 'f', 'nữ '):
+                            gioi_tinh = 'Nu'
+
+                    # ngay_sinh
+                    ngay_sinh_val = row.get('ngay_sinh') or row.get('ngày sinh') or row.get('ngaysinh') or row.get('ngày_sinh') or row.get('dob')
+                    ngay_sinh = parse_date(ngay_sinh_val)
+
+                    # khoa ở đây là Khóa học (ví dụ: K2021)
                     khoa_val = row.get('khoa')
                     khoa = str(khoa_val).strip() if khoa_val is not None else ''
                     if khoa.lower() == 'none':
                         khoa = ''
 
-                    trang_thai_val = row.get('trang_thai')
-                    trang_thai = str(trang_thai_val).strip() if trang_thai_val is not None else 'dang_hoc'
-                    if not trang_thai or trang_thai.lower() == 'none':
-                        trang_thai = 'dang_hoc'
+                    # khoa_vien/ten_khoa ở đây là Khoa chuyên ngành (ví dụ: Khoa Công nghệ thông tin)
+                    ten_khoa_val = row.get('ten_khoa') or row.get('khoa_vien') or row.get('khoa_chuyen_nganh') or row.get('khoa_nganh')
+                    ten_khoa = str(ten_khoa_val).strip() if ten_khoa_val is not None else 'Khoa Công nghệ thông tin'
+                    if not ten_khoa or ten_khoa.lower() == 'none':
+                        ten_khoa = 'Khoa Công nghệ thông tin'
 
-                    nganh, _ = Nganh.objects.get_or_create(
+                    trang_thai_val = row.get('trang_thai')
+                    trang_thai_raw = str(trang_thai_val).strip().lower() if trang_thai_val is not None else ''
+                    
+                    trang_thai_map = {
+                        'dang_hoc': 'dang_hoc',
+                        'đang học': 'dang_hoc',
+                        'canh_bao': 'canh_bao',
+                        'cảnh báo học vụ': 'canh_bao',
+                        'cảnh báo': 'canh_bao',
+                        'dinh_chi': 'dinh_chi',
+                        'đình chỉ': 'dinh_chi',
+                        'tot_nghiep': 'tot_nghiep',
+                        'tốt nghiệp': 'tot_nghiep',
+                        'thoi_hoc': 'thoi_hoc',
+                        'thôi học': 'thoi_hoc',
+                    }
+                    trang_thai = trang_thai_map.get(trang_thai_raw, 'dang_hoc')
+
+                    nganh, created = Nganh.objects.get_or_create(
                         ma_nganh=ma_nganh,
-                        defaults={'ten_nganh': ten_nganh}
+                        defaults={
+                            'ten_nganh': ten_nganh,
+                            'khoa': ten_khoa
+                        }
                     )
+                    # Nếu ngành học đã tồn tại nhưng trong file import có tên khoa hoặc tên ngành khác, ta cập nhật lại
+                    if not created:
+                        updated = False
+                        if ten_khoa_val and nganh.khoa != ten_khoa:
+                            nganh.khoa = ten_khoa
+                            updated = True
+                        if ten_nganh_val and ten_nganh != 'Chưa xác định' and nganh.ten_nganh != ten_nganh:
+                            nganh.ten_nganh = ten_nganh
+                            updated = True
+                        if updated:
+                            nganh.save()
                     # Tự tạo tài khoản: username = mssv, password = mssv
                     sv_user, user_created = User.objects.get_or_create(
                         username=mssv,
@@ -464,6 +529,8 @@ def import_sinhvien(request):
                             'nganh': nganh,
                             'trang_thai': trang_thai,
                             'user': sv_user,
+                            'gioi_tinh': gioi_tinh,
+                            'ngay_sinh': ngay_sinh,
                         }
                     )
                     # Gán lớp nếu có
