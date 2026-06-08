@@ -10,45 +10,12 @@
 <div class="card mb-4">
     <div class="card-body" style="padding:14px 20px">
         <form method="get" class="d-flex gap-2 flex-wrap align-items-center" id="filter-form">
-            <select name="hoc_ky" class="form-select" style="max-width:180px">
+            <select name="hoc_ky" class="form-select" style="max-width:260px" onchange="this.form.submit()">
                 <option value="">-- Tất cả học kỳ --</option>
                 {% for hk in hockys %}
                 <option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>
                 {% endfor %}
             </select>
-
-            {% if not request.user.is_sinhvien %}
-            <select name="khoa_hoc" class="form-select" style="max-width:150px" onchange="this.form.submit()">
-                <option value="">-- Tất cả Khóa --</option>
-                {% for kh in khoa_hocs %}
-                <option value="{{ kh }}" {% if selected_khoa_hoc == kh %}selected{% endif %}>Khóa {{ kh }}</option>
-                {% endfor %}
-            </select>
-            {% endif %}
-
-            {% if not request.user.is_sinhvien %}
-            <!-- Bộ lọc phân cấp thông minh dành cho Giáo vụ / Admin / Cố vấn -->
-            <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px">
-                <option value="">-- Tất cả Khoa --</option>
-                {% for k in khoas %}
-                <option value="{{ k }}" {% if selected_khoa == k %}selected{% endif %}>{{ k }}</option>
-                {% endfor %}
-            </select>
-
-            <select name="nganh" id="filter-nganh" class="form-select" style="max-width:200px">
-                <option value="">-- Tất cả Ngành --</option>
-                {% for n in nganhs %}
-                <option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
-                {% endfor %}
-            </select>
-
-            <select name="lop" id="filter-lop" class="form-select" style="max-width:180px">
-                <option value="">-- Tất cả Lớp --</option>
-                {% for l in lops %}
-                <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
-                {% endfor %}
-            </select>
-            {% endif %}
 
             <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
             <a href="{% url 'dashboard:bao_cao' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
@@ -88,33 +55,21 @@
     </div>
 </div>
 
-<!-- Hàng biểu đồ 1: Điểm + Tỷ lệ -->
+<!-- Hàng biểu đồ 1: Cảnh báo + Sinh viên theo ngành -->
 <div class="grid-2 mb-4">
     <div class="card">
-        <div class="card-header"><span class="card-title">Phân phối điểm chữ (Đơn vị tính: Số lượng điểm)</span></div>
-        <div class="card-body">
-            <div class="chart-container" style="height:260px">
-                <canvas id="diemChart"></canvas>
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="card-header"><span class="card-title">Tỷ lệ đạt/không đạt (Đơn vị tính: Số lượng điểm)</span></div>
-        <div class="card-body" style="display:flex;align-items:center;justify-content:center;height:260px">
-            <canvas id="datChart" style="max-width:220px;max-height:220px"></canvas>
-        </div>
-    </div>
-</div>
-
-<!-- Hàng biểu đồ 2: Cảnh báo theo HK + Sinh viên theo ngành -->
-<div class="grid-2 mb-4">
-    <div class="card">
-        <div class="card-header"><span class="card-title">Số cảnh báo theo học kỳ (Đơn vị tính: Số lượt cảnh báo)</span>
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; width:100%">
+            <span class="card-title">Thống kê cảnh báo học vụ (Đơn vị tính: Số lượt)</span>
+            <select id="chart-group-by" class="form-select form-select-sm" style="max-width:160px; padding: 2px 8px; font-size: 13px">
+                <option value="lop" selected>Theo Lớp</option>
+                <option value="nganh">Theo Ngành</option>
+                <option value="khoa">Theo Khoa</option>
+                <option value="khoa_hoc">Theo Khóa</option>
+            </select>
         </div>
         <div class="card-body">
             <div class="chart-container" style="height:260px">
-                <canvas id="cbHkChart"></canvas>
+                <canvas id="cbChart"></canvas>
             </div>
         </div>
     </div>
@@ -169,57 +124,74 @@
 
 {% block extra_js %}
 <script>
-    const diemLabels = {{ phan_phoi_labels| safe }};
-    const diemData = {{ phan_phoi_data| safe }};
-    const cbHkLabels = {{ cb_hk_labels| safe }};
-    const cbHkData = {{ cb_hk_data| safe }};
-    const nganhLabels = {{ nganh_labels| safe }};
-    const nganhData = {{ nganh_data| safe }};
-    const ttLabels = {{ tt_labels| safe }};
-    const ttData = {{ tt_data| safe }};
+    const cbDatasets = {
+        lop: {
+            labels: {{ cb_lop_labels|safe }},
+            data: {{ cb_lop_data|safe }},
+            color: '#3b82f6',
+            label: 'Số lượt cảnh báo'
+        },
+        nganh: {
+            labels: {{ cb_nganh_labels|safe }},
+            data: {{ cb_nganh_data|safe }},
+            color: '#10b981',
+            label: 'Số lượt cảnh báo'
+        },
+        khoa: {
+            labels: {{ cb_khoa_labels|safe }},
+            data: {{ cb_khoa_data|safe }},
+            color: '#f59e0b',
+            label: 'Số lượt cảnh báo'
+        },
+        khoa_hoc: {
+            labels: {{ cb_khoa_hoc_labels|safe }},
+            data: {{ cb_khoa_hoc_data|safe }},
+            color: '#8b5cf6',
+            label: 'Số lượt cảnh báo'
+        }
+    };
 
-    // Phân phối điểm
-    const diemColors = ['#16a34a', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444', '#dc2626', '#991b1b'];
-    new Chart(document.getElementById('diemChart'), {
+    const nganhLabels = {{ nganh_labels|safe }};
+    const nganhData = {{ nganh_data|safe }};
+    const ttLabels = {{ tt_labels|safe }};
+    const ttData = {{ tt_data|safe }};
+
+    // Khởi tạo biểu đồ cảnh báo (mặc định theo Lớp)
+    const cbCtx = document.getElementById('cbChart').getContext('2d');
+    const warningChart = new Chart(cbCtx, {
         type: 'bar',
         data: {
-            labels: diemLabels,
-            datasets: [{ label: 'Số điểm', data: diemData, backgroundColor: diemColors, borderRadius: 6 }]
+            labels: cbDatasets.lop.labels,
+            datasets: [{
+                label: cbDatasets.lop.label,
+                data: cbDatasets.lop.data,
+                backgroundColor: cbDatasets.lop.color,
+                borderRadius: 6
+            }]
         },
         options: {
-            responsive: true, maintainAspectRatio: false,
+            responsive: true,
+            maintainAspectRatio: false,
             plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
-        }
-    });
-
-    // Tỷ lệ đạt/không đạt
-    const dat = {{ stats.kq_dat }};
-    const khongDat = {{ stats.total_kq }} - dat;
-    new Chart(document.getElementById('datChart'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Đạt', 'Không đạt'],
-            datasets: [{ data: [dat, khongDat], backgroundColor: ['#16a34a', '#ef4444'], borderWidth: 3 }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: true,
-            plugins: { legend: { position: 'bottom', labels: { font: { size: 12 } } } }
-        }
-    });
-
-    // Cảnh báo theo học kỳ
-    if (cbHkLabels.length > 0) {
-        new Chart(document.getElementById('cbHkChart'), {
-            type: 'bar',
-            data: { labels: cbHkLabels, datasets: [{ label: 'Số cảnh báo', data: cbHkData, backgroundColor: '#ef4444', borderRadius: 6 }] },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } }, x: { grid: { display: false } } }
+            scales: {
+                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                x: { grid: { display: false } }
             }
-        });
-    }
+        }
+    });
+
+    // Xử lý thay đổi trục thống kê cảnh báo
+    document.getElementById('chart-group-by').addEventListener('change', function() {
+        const val = this.value;
+        const selected = cbDatasets[val];
+        if (selected) {
+            warningChart.data.labels = selected.labels;
+            warningChart.data.datasets[0].data = selected.data;
+            warningChart.data.datasets[0].backgroundColor = selected.color;
+            warningChart.data.datasets[0].label = selected.label;
+            warningChart.update();
+        }
+    });
 
     // Sinh viên theo ngành
     const palette = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#9333ea', '#0891b2', '#ea580c', '#65a30d'];
@@ -251,62 +223,5 @@
             }
         });
     }
-
-    {% if not request.user.is_sinhvien %}
-    document.addEventListener('DOMContentLoaded', function() {
-        const khoaSelect = document.getElementById('filter-khoa');
-        const nganhSelect = document.getElementById('filter-nganh');
-        const lopSelect = document.getElementById('filter-lop');
-
-        khoaSelect.addEventListener('change', function() {
-            const khoaVal = this.value;
-            nganhSelect.innerHTML = '<option value="">-- Đang tải Ngành... --</option>';
-            lopSelect.innerHTML = '<option value="">-- Tất cả Lớp --</option>';
-
-            if (!khoaVal) {
-                nganhSelect.innerHTML = '<option value="">-- Tất cả Ngành --</option>';
-                return;
-            }
-
-            fetch(`/students/api/filter-options/?khoa=${encodeURIComponent(khoaVal)}`)
-                .then(res => res.json())
-                .then(data => {
-                    let html = '<option value="">-- Tất cả Ngành --</option>';
-                    data.nganhs.forEach(n => {
-                        html += `<option value="${n.id}">${n.ten_nganh}</option>`;
-                    });
-                    nganhSelect.innerHTML = html;
-                })
-                .catch(err => {
-                    console.error('Error fetching majors:', err);
-                    nganhSelect.innerHTML = '<option value="">-- Lỗi tải Ngành --</option>';
-                });
-        });
-
-        nganhSelect.addEventListener('change', function() {
-            const nganhVal = this.value;
-            lopSelect.innerHTML = '<option value="">-- Đang tải Lớp... --</option>';
-
-            if (!nganhVal) {
-                lopSelect.innerHTML = '<option value="">-- Tất cả Lớp --</option>';
-                return;
-            }
-
-            fetch(`/students/api/filter-options/?nganh=${encodeURIComponent(nganhVal)}`)
-                .then(res => res.json())
-                .then(data => {
-                    let html = '<option value="">-- Tất cả Lớp --</option>';
-                    data.lops.forEach(l => {
-                        html += `<option value="${l.id}">${l.ten_lop}</option>`;
-                    });
-                    lopSelect.innerHTML = html;
-                })
-                .catch(err => {
-                    console.error('Error fetching classes:', err);
-                    lopSelect.innerHTML = '<option value="">-- Lỗi tải Lớp --</option>';
-                });
-        });
-    });
-    {% endif %}
 </script>
 {% endblock %}

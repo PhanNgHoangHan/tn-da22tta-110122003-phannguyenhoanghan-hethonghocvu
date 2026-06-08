@@ -3,37 +3,6 @@
 {% block page_title %}Dashboard Tổng quan{% endblock %}
 {% block content %}
 
-<!-- KPI Cards -->
-<div class="grid-4 mb-4">
-    <div class="stat-card">
-        <div class="stat-icon blue">SV</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ total_sv }}</div>
-            <div class="stat-label">Tổng sinh viên</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon green">DH</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ sv_dang_hoc }}</div>
-            <div class="stat-label">Đang học</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon yellow">CB</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ sv_canh_bao }}</div>
-            <div class="stat-label">Đang cảnh báo</div>
-        </div>
-    </div>
-    <div class="stat-card">
-        <div class="stat-icon red">MH</div>
-        <div class="stat-info">
-            <div class="stat-value">{{ total_mon }}</div>
-            <div class="stat-label">Tổng môn học</div>
-        </div>
-    </div>
-</div>
 
 <!-- Cảnh báo mới nhất -->
 <div class="card">

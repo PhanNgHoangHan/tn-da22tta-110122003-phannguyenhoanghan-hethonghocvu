@@ -106,9 +106,34 @@ class HocKy(models.Model):
         return f"HK{self.ky} - {self.nam_hoc}"
 
     def save(self, *args, **kwargs):
+        if self.nam_hoc and self.ky:
+            try:
+                years = self.nam_hoc.split('-')
+                if len(years) == 2:
+                    start_year = int(years[0].strip())
+                    end_year = int(years[1].strip())
+                    from datetime import date
+                    if self.ky == '1':
+                        if not self.ngay_bat_dau:
+                            self.ngay_bat_dau = date(start_year, 10, 1)
+                        if not self.ngay_ket_thuc:
+                            self.ngay_ket_thuc = date(end_year, 1, 31)
+                    elif self.ky == '2':
+                        if not self.ngay_bat_dau:
+                            self.ngay_bat_dau = date(end_year, 2, 1)
+                        if not self.ngay_ket_thuc:
+                            self.ngay_ket_thuc = date(end_year, 6, 30)
+            except Exception:
+                pass
+
         if self.la_hien_tai:
-            HocKy.objects.filter(la_hien_tai=True).update(la_hien_tai=False)
+            # Set other semesters' la_hien_tai to False (excluding this instance if it already exists)
+            qs = HocKy.objects.filter(la_hien_tai=True)
+            if self.pk:
+                qs = qs.exclude(pk=self.pk)
+            qs.update(la_hien_tai=False)
         super().save(*args, **kwargs)
+
 
 
 class MonHoc(models.Model):
@@ -123,6 +148,9 @@ class MonHoc(models.Model):
     so_tc = models.PositiveSmallIntegerField(verbose_name='Số tín chỉ')
     loai = models.CharField(max_length=20, choices=LOAI_CHOICES, default='bat_buoc', verbose_name='Loại học phần')
     mo_ta = models.TextField(blank=True, verbose_name='Mô tả')
+    nganh = models.ForeignKey(Nganh, on_delete=models.SET_NULL, null=True, blank=True, related_name='mon_hocs', verbose_name='Chương trình đào tạo')
+    nam_hoc_ctdt = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Năm học (CTĐT)')
+    hoc_ky_ctdt = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Học kỳ (CTĐT)')
 
     class Meta:
         verbose_name = 'Môn học'

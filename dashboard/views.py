@@ -196,17 +196,8 @@ def dashboard_giaovu(request):
 @login_required
 def bao_cao(request):
     """Trang báo cáo & thống kê."""
-    from students.models import Nganh, Lop
-    import re
-
     hockys = HocKy.objects.all().order_by('-nam_hoc', '-ky')
-    nganhs = Nganh.objects.all()
-    
     hk_id = request.GET.get('hoc_ky', '')
-    nganh_id = request.GET.get('nganh', '')
-    khoa = request.GET.get('khoa', '')
-    lop_id = request.GET.get('lop', '')
-    khoa_hoc = request.GET.get('khoa_hoc', '')
 
     qs_sv = SinhVien.objects.all()
     qs_kq = KetQuaHocTap.objects.select_related('sinh_vien', 'mon_hoc', 'hoc_ky')
@@ -221,32 +212,6 @@ def bao_cao(request):
         qs_kq = qs_kq.filter(hoc_ky_id=hk_id)
         qs_cb = qs_cb.filter(hoc_ky_id=hk_id)
 
-    if khoa_hoc:
-        cohort_suffix = khoa_hoc[-2:]
-        qs_sv = qs_sv.filter(lop__ten_lop__contains=cohort_suffix)
-        qs_kq = qs_kq.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
-        qs_cb = qs_cb.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
-    if khoa:
-        qs_sv = qs_sv.filter(nganh__khoa=khoa)
-        qs_kq = qs_kq.filter(sinh_vien__nganh__khoa=khoa)
-        qs_cb = qs_cb.filter(sinh_vien__nganh__khoa=khoa)
-    if nganh_id:
-        qs_sv = qs_sv.filter(nganh_id=nganh_id)
-        qs_kq = qs_kq.filter(sinh_vien__nganh_id=nganh_id)
-        qs_cb = qs_cb.filter(sinh_vien__nganh_id=nganh_id)
-    if lop_id:
-        qs_sv = qs_sv.filter(lop_id=lop_id)
-        qs_kq = qs_kq.filter(sinh_vien__lop_id=lop_id)
-        qs_cb = qs_cb.filter(sinh_vien__lop_id=lop_id)
-
-    # Tính phân phối điểm chữ động từ qs_kq đã lọc
-    phan_phoi = {'A': 0, 'B+': 0, 'B': 0, 'C+': 0, 'C': 0, 'D+': 0, 'D': 0, 'F': 0}
-    from results.utils import diem_chu
-    for diem_tk in qs_kq.values_list('diem_tk', flat=True):
-        chu = diem_chu(diem_tk)
-        if chu in phan_phoi:
-            phan_phoi[chu] += 1
-
     # Thống kê tổng hợp
     stats = {
         'total_sv': qs_sv.count(),
@@ -258,10 +223,25 @@ def bao_cao(request):
         'kq_dat': sum(1 for kq in qs_kq if kq.diem_tk is not None and kq.diem_tk >= 4.0),
     }
 
-    # Biểu đồ: Cảnh báo theo học kỳ
-    hockys_chart = HocKy.objects.order_by('nam_hoc', 'ky')[:10]
-    cb_hk_labels = [str(hk) for hk in hockys_chart]
-    cb_hk_data = [qs_cb.filter(hoc_ky=hk).count() for hk in hockys_chart]
+    # Biểu đồ: Cảnh báo theo lớp
+    cb_lop_stats = qs_cb.values('sinh_vien__lop__ten_lop').annotate(count=Count('id')).order_by('-count')[:15]
+    cb_lop_labels = [item['sinh_vien__lop__ten_lop'] or 'Chưa xếp lớp' for item in cb_lop_stats]
+    cb_lop_data = [item['count'] for item in cb_lop_stats]
+
+    # Biểu đồ: Cảnh báo theo ngành
+    cb_nganh_stats = qs_cb.values('sinh_vien__nganh__ten_nganh').annotate(count=Count('id')).order_by('-count')[:15]
+    cb_nganh_labels = [item['sinh_vien__nganh__ten_nganh'] or 'Chưa xếp ngành' for item in cb_nganh_stats]
+    cb_nganh_data = [item['count'] for item in cb_nganh_stats]
+
+    # Biểu đồ: Cảnh báo theo khoa
+    cb_khoa_stats = qs_cb.values('sinh_vien__nganh__khoa').annotate(count=Count('id')).order_by('-count')[:15]
+    cb_khoa_labels = [item['sinh_vien__nganh__khoa'] or 'Chưa xác định khoa' for item in cb_khoa_stats]
+    cb_khoa_data = [item['count'] for item in cb_khoa_stats]
+
+    # Biểu đồ: Cảnh báo theo khóa (cohort)
+    cb_khoa_hoc_stats = qs_cb.values('sinh_vien__khoa').annotate(count=Count('id')).order_by('-count')[:15]
+    cb_khoa_hoc_labels = [f"Khóa {item['sinh_vien__khoa']}" if item['sinh_vien__khoa'] else 'Chưa xác định' for item in cb_khoa_hoc_stats]
+    cb_khoa_hoc_data = [item['count'] for item in cb_khoa_hoc_stats]
 
     # Biểu đồ: Sinh viên theo ngành
     nganh_stats = qs_sv.values('nganh__ten_nganh').annotate(count=Count('id')).order_by('-count')[:8]
@@ -269,45 +249,18 @@ def bao_cao(request):
     # Biểu đồ: Trạng thái sinh viên
     tt_stats = qs_sv.values('trang_thai').annotate(count=Count('id'))
 
-    # Dữ liệu cho bộ lọc phân cấp (để hiển thị dropdown)
-    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
-    
-    # Lấy danh sách khóa học duy nhất từ các lớp
-    unique_years = set()
-    for name in Lop.objects.values_list('ten_lop', flat=True):
-        m = re.search(r'\d{2}', name)
-        if m:
-            unique_years.add("20" + m.group())
-    khoa_hocs = sorted(list(unique_years), reverse=True)
-
-    lops = Lop.objects.all()
-    if request.user.is_covan:
-        lops = lops.filter(covan=request.user)
-    if nganh_id:
-        lops = lops.filter(nganh_id=nganh_id)
-    if khoa_hoc:
-        cohort_suffix = khoa_hoc[-2:]
-        lops = lops.filter(ten_lop__contains=cohort_suffix)
-        
-    if khoa:
-        nganhs = nganhs.filter(khoa=khoa)
-
     context = {
         'hockys': hockys, 
-        'nganhs': nganhs,
-        'khoas': khoas,
-        'lops': lops,
-        'khoa_hocs': khoa_hocs,
         'hk_id': hk_id, 
-        'nganh_id': nganh_id,
-        'selected_khoa': khoa,
-        'selected_lop': lop_id,
-        'selected_khoa_hoc': khoa_hoc,
         'stats': stats,
-        'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
-        'phan_phoi_data': json.dumps(list(phan_phoi.values())),
-        'cb_hk_labels': json.dumps(cb_hk_labels),
-        'cb_hk_data': json.dumps(cb_hk_data),
+        'cb_lop_labels': json.dumps(cb_lop_labels),
+        'cb_lop_data': json.dumps(cb_lop_data),
+        'cb_nganh_labels': json.dumps(cb_nganh_labels),
+        'cb_nganh_data': json.dumps(cb_nganh_data),
+        'cb_khoa_labels': json.dumps(cb_khoa_labels),
+        'cb_khoa_data': json.dumps(cb_khoa_data),
+        'cb_khoa_hoc_labels': json.dumps(cb_khoa_hoc_labels),
+        'cb_khoa_hoc_data': json.dumps(cb_khoa_hoc_data),
         'nganh_labels': json.dumps([d['nganh__ten_nganh'] or 'Chưa xác định' for d in nganh_stats]),
         'nganh_data': json.dumps([d['count'] for d in nganh_stats]),
         'tt_labels': json.dumps([d['trang_thai'] for d in tt_stats]),

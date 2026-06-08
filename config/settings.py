@@ -32,7 +32,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'accounts.middleware.PreventBackCacheMiddleware',
+    'students.middleware.SemesterAutoCreateMiddleware',
 ]
+
 
 ROOT_URLCONF = 'config.urls'
 

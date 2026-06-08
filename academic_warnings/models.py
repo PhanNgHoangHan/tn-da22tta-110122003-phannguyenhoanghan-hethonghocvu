@@ -43,3 +43,18 @@ class CanhBaoHocVu(models.Model):
     @property
     def mau_canh_bao(self):
         return {'canh_bao': 'warning', 'buoc_thoi_hoc': 'danger'}.get(self.muc_canh_bao, 'secondary')
+
+
+class LichSuGuiEmailBaoCao(models.Model):
+    lop = models.ForeignKey('students.Lop', on_delete=models.CASCADE, verbose_name='Lớp')
+    hoc_ky = models.ForeignKey('students.HocKy', on_delete=models.CASCADE, verbose_name='Học kỳ báo cáo')
+    ngay_gui = models.DateTimeField(auto_now_add=True, verbose_name='Ngày gửi')
+
+    class Meta:
+        verbose_name = 'Lịch sử gửi báo cáo lớp'
+        verbose_name_plural = 'Lịch sử gửi báo cáo lớp'
+        unique_together = ['lop', 'hoc_ky']
+
+    def __str__(self):
+        return f"Báo cáo {self.lop} - {self.hoc_ky} - Gửi ngày {self.ngay_gui.date()}"
+

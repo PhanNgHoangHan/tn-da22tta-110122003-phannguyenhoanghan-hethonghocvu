@@ -142,16 +142,23 @@ def tinh_dtbchk(sinh_vien, hoc_ky):
             tong_tc, tc_dat)
 
 
-def tinh_dtbctl(sinh_vien):
+def tinh_dtbctl(sinh_vien, hoc_ky=None):
     """
     Tính ĐTBCTL hệ 10 và hệ 4 (lấy điểm tốt nhất mỗi môn, trọng số TC, kể cả F).
+    Chỉ tính các học kỳ từ trước đến học kỳ `hoc_ky` (nếu có).
     Trả về (dtbctl_10, dtbctl_4, tc_tich_luy, tong_tc_da_hoc).
     """
     from results.models import KetQuaHocTap
+    from django.db.models import Q
 
-    mon_ids = KetQuaHocTap.objects.filter(
-        sinh_vien=sinh_vien, diem_tk__isnull=False
-    ).values_list('mon_hoc_id', flat=True).distinct()
+    qs = KetQuaHocTap.objects.filter(sinh_vien=sinh_vien, diem_tk__isnull=False)
+    if hoc_ky:
+        qs = qs.filter(
+            Q(hoc_ky__nam_hoc__lt=hoc_ky.nam_hoc) |
+            Q(hoc_ky__nam_hoc=hoc_ky.nam_hoc, hoc_ky__ky__lte=hoc_ky.ky)
+        )
+
+    mon_ids = qs.values_list('mon_hoc_id', flat=True).distinct()
 
     tong_tc = 0
     tong_diem_10 = 0.0
@@ -159,9 +166,7 @@ def tinh_dtbctl(sinh_vien):
     tc_tich_luy  = 0
 
     for mon_id in mon_ids:
-        best = KetQuaHocTap.objects.filter(
-            sinh_vien=sinh_vien, mon_hoc_id=mon_id, diem_tk__isnull=False
-        ).order_by('-diem_tk').first()
+        best = qs.filter(mon_hoc_id=mon_id).order_by('-diem_tk').first()
         if best:
             tc = best.mon_hoc.so_tc
             tong_tc += tc
@@ -175,6 +180,7 @@ def tinh_dtbctl(sinh_vien):
     return dtbctl_10, dtbctl_4, tc_tich_luy, tong_tc
 
 
+
 # ─── Các hàm hỗ trợ cảnh báo ──────────────────────────────────────────────
 
 def tinh_tc_khong_dat_hk(sinh_vien, hoc_ky):
@@ -186,35 +192,45 @@ def tinh_tc_khong_dat_hk(sinh_vien, hoc_ky):
     return sum(kq.mon_hoc.so_tc for kq in ket_qua if not la_dat(kq.diem_tk))
 
 
-def tinh_tc_no_dong(sinh_vien):
+def tinh_tc_no_dong(sinh_vien, hoc_ky=None):
     """
-    Tổng TC nợ đọng từ đầu khóa = TC các môn chưa đạt (điểm F tốt nhất).
+    Tổng TC nợ đọng từ đầu khóa đến học kỳ `hoc_ky` = TC các môn chưa đạt (điểm F tốt nhất).
     Môn đã học lại đạt thì không tính nợ đọng.
     """
     from results.models import KetQuaHocTap
+    from django.db.models import Q
 
-    mon_ids = KetQuaHocTap.objects.filter(
-        sinh_vien=sinh_vien, diem_tk__isnull=False
-    ).values_list('mon_hoc_id', flat=True).distinct()
+    qs = KetQuaHocTap.objects.filter(sinh_vien=sinh_vien, diem_tk__isnull=False)
+    if hoc_ky:
+        qs = qs.filter(
+            Q(hoc_ky__nam_hoc__lt=hoc_ky.nam_hoc) |
+            Q(hoc_ky__nam_hoc=hoc_ky.nam_hoc, hoc_ky__ky__lte=hoc_ky.ky)
+        )
+
+    mon_ids = qs.values_list('mon_hoc_id', flat=True).distinct()
 
     tc_no = 0
     for mon_id in mon_ids:
-        best = KetQuaHocTap.objects.filter(
-            sinh_vien=sinh_vien, mon_hoc_id=mon_id, diem_tk__isnull=False
-        ).order_by('-diem_tk').first()
+        best = qs.filter(mon_hoc_id=mon_id).order_by('-diem_tk').first()
         if best and not la_dat(best.diem_tk):
             tc_no += best.mon_hoc.so_tc
     return tc_no
 
 
+
 def xac_dinh_nam_hoc_sv(sinh_vien, hoc_ky):
     """
-    Xác định sinh viên đang ở năm thứ mấy dựa trên số HK đã học.
+    Xác định sinh viên đang ở năm thứ mấy tính đến học kỳ `hoc_ky`.
     2 HK/năm → năm 1: HK 1-2, năm 2: HK 3-4, năm 3: HK 5-6, năm 4+: HK 7+
+    Chỉ đếm các HK có điểm từ trước đến HK hiện tại (tránh tính tương lai).
     """
     from students.models import HocKy
+    from django.db.models import Q
     so_hk = HocKy.objects.filter(
         ket_qua__sinh_vien=sinh_vien
+    ).filter(
+        Q(nam_hoc__lt=hoc_ky.nam_hoc) |
+        Q(nam_hoc=hoc_ky.nam_hoc, ky__lte=hoc_ky.ky)
     ).distinct().count()
 
     if so_hk <= 2:   return 1
@@ -279,7 +295,7 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
     Việc xác định 'buoc_thoi_hoc' do caller quyết định dựa trên số lần liên tiếp.
     """
     dtbchk_10, dtbchk_4, tc_hk, _ = tinh_dtbchk(sinh_vien, hoc_ky)
-    dtbctl_10, dtbctl_4, tc_tl, _ = tinh_dtbctl(sinh_vien)
+    dtbctl_10, dtbctl_4, tc_tl, _ = tinh_dtbctl(sinh_vien, hoc_ky)
     nam_hoc = xac_dinh_nam_hoc_sv(sinh_vien, hoc_ky)
     hk_dau = la_hk_dau_khoa(sinh_vien, hoc_ky)
 
@@ -291,7 +307,8 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
     # ── Điều kiện a ──────────────────────────────────────────────────────
     if tc_hk > 0:
         tc_khong_dat_hk = tinh_tc_khong_dat_hk(sinh_vien, hoc_ky)
-        tc_no_dong = tinh_tc_no_dong(sinh_vien)
+        tc_no_dong = tinh_tc_no_dong(sinh_vien, hoc_ky)
+
         ly_do_a = []
         if tc_khong_dat_hk > tc_hk * 0.5:
             pct = tc_khong_dat_hk / tc_hk * 100
@@ -306,18 +323,19 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
     # ── Điều kiện b ──────────────────────────────────────────────────────
     if tc_hk > 0:
         nguong_hk = 0.80 if hk_dau else 1.00
-        if dtbchk_10 < nguong_hk:
+        if dtbchk_4 < nguong_hk:
             vi_pham.append(
-                f'ĐTBCHK {dtbchk_10:.2f} < {nguong_hk} '
+                f'ĐTBCHK hệ 4 {dtbchk_4:.2f} < {nguong_hk} '
                 f'({"HK đầu khóa" if hk_dau else "HK tiếp theo"})'
             )
 
     # ── Điều kiện c ──────────────────────────────────────────────────────
     nguong_ctl = {1: 1.20, 2: 1.40, 3: 1.60, 4: 1.80}.get(min(nam_hoc, 4), 1.80)
-    if dtbctl_10 < nguong_ctl:
+    if dtbctl_4 < nguong_ctl:
         vi_pham.append(
-            f'ĐTBCTL {dtbctl_10:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
+            f'ĐTBCTL hệ 4 {dtbctl_4:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
         )
+
 
     # ── Điều kiện d ──────────────────────────────────────────────────────
     if khong_dang_ky:

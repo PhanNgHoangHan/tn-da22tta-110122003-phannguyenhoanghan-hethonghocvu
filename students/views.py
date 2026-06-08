@@ -26,7 +26,7 @@ def role_required(*roles):
 # ---- Sinh viên ----
 @login_required
 def sinhvien_list(request):
-    qs = SinhVien.objects.select_related('nganh', 'covan', 'lop').all()
+    qs = SinhVien.objects.select_related('nganh', 'covan', 'lop').order_by('khoa', 'nganh__khoa', 'lop__ten_lop', 'mssv')
     q = request.GET.get('q', '')
     trang_thai = request.GET.get('trang_thai', '')
     
@@ -285,7 +285,14 @@ def sinhvien_delete(request, pk):
 # ---- Môn học ----
 @login_required
 def monhoc_list(request):
-    qs = MonHoc.objects.all()
+    from collections import OrderedDict
+    nganhs = Nganh.objects.all()
+    nganh_id = request.GET.get('nganh', '')
+    
+    qs = MonHoc.objects.select_related('nganh').all().order_by('-nam_hoc_ctdt', '-hoc_ky_ctdt', 'ma_mh')
+    if nganh_id:
+        qs = qs.filter(nganh_id=nganh_id)
+        
     q = request.GET.get('q', '')
     if q:
         from results.utils import remove_accents
@@ -295,7 +302,39 @@ def monhoc_list(request):
             if q_clean in remove_accents(mh.ma_mh)
             or q_clean in remove_accents(mh.ten_mh)
         ]
-    return render(request, 'students/monhoc_list.html', {'monhocs': qs, 'q': q})
+
+    # Nhóm môn học theo Năm và Học kỳ
+    grouped_data = OrderedDict()
+    for y in [4, 3, 2, 1, None]:
+        grouped_data[y] = OrderedDict()
+        for s in [2, 1, None]:
+            grouped_data[y][s] = []
+
+    for mh in qs:
+        y = mh.nam_hoc_ctdt
+        s = mh.hoc_ky_ctdt
+        if y not in grouped_data:
+            y = None
+        if s not in grouped_data[y]:
+            s = None
+        grouped_data[y][s].append(mh)
+
+    # Loại bỏ các nhóm trống
+    final_grouped_data = OrderedDict()
+    for y, semesters in grouped_data.items():
+        has_subjects_in_year = any(len(subjects) > 0 for subjects in semesters.values())
+        if has_subjects_in_year:
+            final_grouped_data[y] = OrderedDict()
+            for s, subjects in semesters.items():
+                if len(subjects) > 0:
+                    final_grouped_data[y][s] = subjects
+
+    return render(request, 'students/monhoc_list.html', {
+        'grouped_monhocs': final_grouped_data, 
+        'q': q,
+        'nganhs': nganhs,
+        'selected_nganh': nganh_id
+    })
 
 
 @login_required
@@ -464,6 +503,8 @@ def import_sinhvien(request):
                     khoa = str(khoa_val).strip() if khoa_val is not None else ''
                     if khoa.lower() == 'none':
                         khoa = ''
+                    if khoa.startswith('K') or khoa.startswith('k'):
+                        khoa = khoa[1:]
 
                     # khoa_vien/ten_khoa ở đây là Khoa chuyên ngành (ví dụ: Khoa Công nghệ thông tin)
                     ten_khoa_val = row.get('ten_khoa') or row.get('khoa_vien') or row.get('khoa_chuyen_nganh') or row.get('khoa_nganh')
@@ -520,6 +561,62 @@ def import_sinhvien(request):
                         sv_user.set_password(mssv)
                         sv_user.save()
 
+                    # Tìm hoặc tạo tài khoản cố vấn/giảng viên nếu có
+                    ma_gv_val = (
+                        row.get('ma_gvcv') or row.get('mã gvcv') or row.get('ma gvcv') or
+                        row.get('ma_gv') or row.get('mã gv') or row.get('ma gv') or
+                        row.get('ma_covan') or row.get('mã cố vấn') or
+                        row.get('mã giảng viên') or row.get('ma_giangvien')
+                    )
+                    covan = None
+                    if ma_gv_val:
+                        ma_gv = str(ma_gv_val).strip()
+                        if ma_gv and ma_gv.lower() != 'none':
+                            ten_gv_val = (
+                                row.get('ten_gvcv') or row.get('tên gvcv') or row.get('ten gvcv') or
+                                row.get('ten_gv') or row.get('tên gv') or row.get('ten gv') or
+                                row.get('ten_covan') or row.get('tên cố vấn') or
+                                row.get('tên giảng viên') or row.get('ten_giangvien')
+                            )
+                            ten_gv = str(ten_gv_val).strip() if ten_gv_val is not None else ''
+                            if not ten_gv or ten_gv.lower() == 'none':
+                                ten_gv = ma_gv
+
+                            mail_gv_val = (
+                                row.get('mail_gvcv') or row.get('email_gvcv') or row.get('mail gvcv') or
+                                row.get('mail_gv') or row.get('email_gv') or row.get('mail gv') or
+                                row.get('email_covan') or row.get('mail_covan') or
+                                row.get('email_giangvien')
+                            )
+                            mail_gv = str(mail_gv_val).strip() if mail_gv_val is not None else ''
+                            if mail_gv.lower() == 'none':
+                                mail_gv = ''
+
+                            covan, cv_created = User.objects.get_or_create(
+                                username=ma_gv,
+                                defaults={
+                                    'full_name': ten_gv,
+                                    'email': mail_gv,
+                                    'role': 'covan',
+                                }
+                            )
+                            if cv_created:
+                                covan.set_password(ma_gv)
+                                covan.save()
+                            else:
+                                updated = False
+                                if ten_gv_val and covan.full_name != ten_gv:
+                                    covan.full_name = ten_gv
+                                    updated = True
+                                if mail_gv_val and covan.email != mail_gv:
+                                    covan.email = mail_gv
+                                    updated = True
+                                if covan.role != 'covan':
+                                    covan.role = 'covan'
+                                    updated = True
+                                if updated:
+                                    covan.save()
+
                     sv, _ = SinhVien.objects.update_or_create(
                         mssv=mssv,
                         defaults={
@@ -533,21 +630,50 @@ def import_sinhvien(request):
                             'ngay_sinh': ngay_sinh,
                         }
                     )
-                    # Gán lớp nếu có
+                    # Gán lớp nếu có (tự động tạo lớp nếu chưa tồn tại)
                     ten_lop = str(row.get('lop', '') or '').strip()
-                    if ten_lop:
+                    if ten_lop and ten_lop.lower() != 'none':
                         from students.models import Lop
-                        lop_obj = Lop.objects.filter(ten_lop=ten_lop).first()
-                        if lop_obj:
-                            sv.lop = lop_obj
-                            if lop_obj.covan:
-                                sv.covan = lop_obj.covan
-                            sv.save()
+                        import re
+                        m = re.search(r'\d{2}', ten_lop)
+                        lop_khoa = '20' + m.group() if m else (khoa or '2022')
+                        if lop_khoa.startswith('K') or lop_khoa.startswith('k'):
+                            lop_khoa = lop_khoa[1:]
+
+                        lop_obj, lop_created = Lop.objects.get_or_create(
+                            ten_lop=ten_lop,
+                            defaults={
+                                'nganh': nganh,
+                                'khoa': lop_khoa,
+                            }
+                        )
+
+                        # Nếu lớp đã tồn tại nhưng chưa có ngành học thì gán ngành học
+                        if not lop_created and not lop_obj.nganh:
+                            lop_obj.nganh = nganh
+                            lop_obj.save()
+
+                        # Gán cố vấn cho lớp nếu cố vấn chưa nhận lớp nào khác
+                        if covan:
+                            already_advising = Lop.objects.filter(covan=covan).exclude(pk=lop_obj.pk).first()
+                            if not already_advising:
+                                lop_obj.covan = covan
+                                lop_obj.save()
+
+                        sv.lop = lop_obj
+                        if covan:
+                            sv.covan = covan
+                        elif lop_obj.covan:
+                            sv.covan = lop_obj.covan
+                        sv.save()
+                    elif covan:
+                        sv.covan = covan
+                        sv.save()
                     count += 1
                 except Exception as e:
                     errors.append(f"MSSV {mssv}: {e}")
 
-            messages.success(request, f'Import thành công {count} sinh viên (tài khoản: username=mssv, mật khẩu=mssv).')
+            messages.success(request, f'Import thành công {count} sinh viên.')
             if errors:
                 messages.warning(request, f'{len(errors)} dòng lỗi: ' + '; '.join(errors[:5]))
             return redirect('students:sinhvien_list')
@@ -626,6 +752,29 @@ def import_monhoc(request):
                     if mo_ta.lower() == 'none':
                         mo_ta = ''
 
+                    ma_nganh_val = row.get('ma_nganh') or row.get('ngành') or row.get('nganh') or row.get('chương trình') or row.get('chuong_trinh')
+                    nganh = None
+                    if ma_nganh_val:
+                        ma_nganh = str(ma_nganh_val).strip()
+                        if ma_nganh and ma_nganh.lower() != 'none':
+                            nganh = Nganh.objects.filter(ma_nganh=ma_nganh).first()
+
+                    nam_hoc_val = row.get('nam_hoc_ctdt') or row.get('năm học') or row.get('nam_hoc') or row.get('năm') or row.get('nam')
+                    nam_hoc_ctdt = None
+                    if nam_hoc_val is not None:
+                        try:
+                            nam_hoc_ctdt = int(float(str(nam_hoc_val).strip()))
+                        except ValueError:
+                            pass
+
+                    hoc_ky_val = row.get('hoc_ky_ctdt') or row.get('học kỳ') or row.get('hoc_ky') or row.get('kỳ') or row.get('ky') or row.get('hk')
+                    hoc_ky_ctdt = None
+                    if hoc_ky_val is not None:
+                        try:
+                            hoc_ky_ctdt = int(float(str(hoc_ky_val).strip()))
+                        except ValueError:
+                            pass
+
                     MonHoc.objects.update_or_create(
                         ma_mh=ma_mh,
                         defaults={
@@ -633,6 +782,9 @@ def import_monhoc(request):
                             'so_tc': so_tc,
                             'loai': loai,
                             'mo_ta': mo_ta,
+                            'nganh': nganh,
+                            'nam_hoc_ctdt': nam_hoc_ctdt,
+                            'hoc_ky_ctdt': hoc_ky_ctdt,
                         }
                     )
                     count += 1
