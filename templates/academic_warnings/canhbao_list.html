@@ -2,6 +2,21 @@
 {% block title %}Cảnh báo học vụ{% endblock %}
 {% block page_title %}Cảnh báo học vụ{% endblock %}
 {% block topbar_actions %}
+{% if request.user.is_giaovu or request.user.is_admin %}
+<form action="{% url 'academic_warnings:canhbao_send_bulk_email' %}?{{ request.GET.urlencode }}" method="post"
+    onsubmit="return confirm('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ đến TẤT CẢ các sinh viên chưa thông báo trong danh sách bộ lọc hiện tại? Trạng thái của các cảnh báo này sẽ chuyển sang Đã thông báo.')"
+    style="display:inline-block; margin: 0 8px 0 0;">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-success btn-sm"
+        style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; font-size: 12.5px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+            <path
+                d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
+        </svg>
+        Gửi thông báo
+    </button>
+</form>
+{% endif %}
 <a href="{% url 'academic_warnings:export' %}" class="btn btn-secondary btn-sm">Export</a>
 {% endblock %}
 {% block content %}
@@ -143,25 +158,6 @@
         <div style="padding: 12px 20px; font-size: 13.5px; border-top: 1px solid var(--border); color: var(--text-secondary); font-weight: 500;">
             Tổng cộng: <strong style="color: var(--text-primary);">{{ canh_baos|length }}</strong> cảnh báo học vụ
         </div>
-    </div>
-    {% if request.user.is_giaovu or request.user.is_admin %}
-    <div
-        style="padding: 16px 20px; background: #f8fafc; border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">
-        <form action="{% url 'academic_warnings:canhbao_send_bulk_email' %}?{{ request.GET.urlencode }}" method="post"
-            onsubmit="return confirm('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ đến TẤT CẢ các sinh viên chưa thông báo trong danh sách bộ lọc hiện tại? Trạng thái của các cảnh báo này sẽ chuyển sang Đã thông báo.')">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-success"
-                style="padding: 10px 24px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"
-                    style="margin-right: 4px;">
-                    <path
-                        d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
-                </svg>
-                Gửi thông báo
-            </button>
-        </form>
-    </div>
-    {% endif %}
 </div>
 {% endblock %}
 

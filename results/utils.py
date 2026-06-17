@@ -330,11 +330,12 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
             )
 
     # ── Điều kiện c ──────────────────────────────────────────────────────
-    nguong_ctl = {1: 1.20, 2: 1.40, 3: 1.60, 4: 1.80}.get(min(nam_hoc, 4), 1.80)
-    if dtbctl_4 < nguong_ctl:
-        vi_pham.append(
-            f'ĐTBCTL hệ 4 {dtbctl_4:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
-        )
+    if not hk_dau:
+        nguong_ctl = {1: 1.20, 2: 1.40, 3: 1.60, 4: 1.80}.get(min(nam_hoc, 4), 1.80)
+        if dtbctl_4 < nguong_ctl:
+            vi_pham.append(
+                f'ĐTBCTL hệ 4 {dtbctl_4:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
+            )
 
 
     # ── Điều kiện d ──────────────────────────────────────────────────────

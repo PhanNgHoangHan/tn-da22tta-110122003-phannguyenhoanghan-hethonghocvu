@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
-{% block title %}Danh sách môn học{% endblock %}
-{% block page_title %}Danh sách môn học{% endblock %}
+{% block title %}Chương trình đào tạo{% endblock %}
+{% block page_title %}Chương trình đào tạo{% endblock %}
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'students:monhoc_create' %}" class="btn btn-primary btn-sm">Thêm môn học</a>
+<a href="{% url 'students:monhoc_create' %}" class="btn btn-primary btn-sm">Thêm chương trình đào tạo</a>
 <a href="{% url 'students:import_monhoc' %}" class="btn btn-secondary btn-sm">Import</a>
 {% endif %}
 {% endblock %}
@@ -14,7 +14,7 @@
             <input type="text" name="q" value="{{ q }}" placeholder="Tìm mã, tên môn..." class="form-control" style="max-width:280px">
             
             <select name="nganh" class="form-select" style="max-width:240px" onchange="this.form.submit()">
-                <option value="">-- Tất cả Chương trình --</option>
+                <option value="">-- Chọn Chương trình đào tạo --</option>
                 {% for n in nganhs %}
                 <option value="{{ n.pk }}" {% if selected_nganh == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
                 {% endfor %}
@@ -26,62 +26,50 @@
     </div>
 </div>
 {% if grouped_monhocs %}
-    {% for y, semesters in grouped_monhocs.items %}
+    {% for hk_num, subjects in grouped_monhocs.items %}
     <div class="card mb-4">
-        <div class="card-header" style="background:#1e293b;color:white;border-radius:12px 12px 0 0">
-            <span class="card-title" style="color:white;font-size:15px">{% if y %}Năm {{ y }}{% else %}Chưa phân loại năm{% endif %}</span>
-        </div>
-
-        {% for s, subjects in semesters.items %}
-        <div style="border-bottom: 1px solid #e2e8f0; {% if forloop.last %}border-bottom: none;{% endif %}">
-            <!-- Header học kỳ -->
-            <div style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-                <span style="font-weight:600;color:#374151;font-size:13.5px">{% if s %}Học kỳ {{ s }}{% else %}Chưa phân loại học kỳ{% endif %}</span>
-                <div style="font-size:12.5px;color:#64748b">
-                    Số môn: <strong style="color:#1e293b">{{ subjects|length }}</strong>
-                </div>
-            </div>
-
-            <!-- Bảng danh sách môn học -->
-            <div class="table-responsive">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 120px">Mã MH</th>
-                            <th>Tên môn học</th>
-                            <th style="text-align:center; width: 80px">Số TC</th>
-                            <th style="width: 150px">Loại</th>
-                            <th>Chương trình</th>
-                            <th style="width: 150px">Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for mh in subjects %}
-                        <tr>
-                            <td><strong>{{ mh.ma_mh }}</strong></td>
-                            <td>{{ mh.ten_mh }}</td>
-                            <td style="text-align:center"><strong>{{ mh.so_tc }}</strong></td>
-                            <td><span class="badge badge-info">{{ mh.get_loai_display }}</span></td>
-                            <td>{{ mh.nganh.ten_nganh|default:'-' }}</td>
-                            <td>
-                                {% if request.user.is_giaovu or request.user.is_admin %}
-                                <a href="{% url 'students:monhoc_edit' mh.pk %}" class="btn btn-sm btn-warning" style="padding: 2px 8px; font-size: 12px">Sửa</a>
-                                <a href="{% url 'students:monhoc_delete' mh.pk %}" class="btn btn-sm btn-danger" style="padding: 2px 8px; font-size: 12px">Xóa</a>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card-header" style="background:#1e293b;color:white;border-radius:12px 12px 0 0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+            <span class="card-title" style="color:white;font-size:15px">{% if hk_num %}Học kỳ {{ hk_num }}{% else %}Chưa phân loại học kỳ{% endif %}</span>
+            <div style="font-size:12.5px;color:#cbd5e1">
+                Số môn: <strong style="color:white">{{ subjects|length }}</strong>
             </div>
         </div>
-        {% endfor %}
+
+        <!-- Bảng danh sách môn học -->
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 120px">Mã MH</th>
+                        <th>Tên môn học</th>
+                        <th style="text-align:center; width: 80px">Số TC</th>
+                        <th style="width: 150px">Loại</th>
+                        <th>Chương trình</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mh in subjects %}
+                    <tr>
+                        <td><strong>{{ mh.ma_mh }}</strong></td>
+                        <td>{{ mh.ten_mh }}</td>
+                        <td style="text-align:center"><strong>{{ mh.so_tc }}</strong></td>
+                        <td><span class="badge badge-info">{{ mh.get_loai_display }}</span></td>
+                        <td>{{ mh.nganh.ten_nganh|default:'-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
     {% endfor %}
 {% else %}
 <div class="card">
     <div class="card-body" style="text-align:center;padding:40px;color:#94a3b8">
+        {% if not selected_nganh %}
+        <p>Vui lòng chọn một chương trình đào tạo để xem danh sách môn học.</p>
+        {% else %}
         <p>Không tìm thấy môn học nào.</p>
+        {% endif %}
     </div>
 </div>
 {% endif %}

@@ -289,9 +289,10 @@ def monhoc_list(request):
     nganhs = Nganh.objects.all()
     nganh_id = request.GET.get('nganh', '')
     
-    qs = MonHoc.objects.select_related('nganh').all().order_by('-nam_hoc_ctdt', '-hoc_ky_ctdt', 'ma_mh')
-    if nganh_id:
-        qs = qs.filter(nganh_id=nganh_id)
+    if not nganh_id:
+        qs = MonHoc.objects.none()
+    else:
+        qs = MonHoc.objects.select_related('nganh').filter(nganh_id=nganh_id).order_by('-nam_hoc_ctdt', '-hoc_ky_ctdt', 'ma_mh')
         
     q = request.GET.get('q', '')
     if q:
@@ -303,31 +304,26 @@ def monhoc_list(request):
             or q_clean in remove_accents(mh.ten_mh)
         ]
 
-    # Nhóm môn học theo Năm và Học kỳ
+    # Nhóm môn học theo Học kỳ (8 giảm dần về 1 và None)
     grouped_data = OrderedDict()
-    for y in [4, 3, 2, 1, None]:
-        grouped_data[y] = OrderedDict()
-        for s in [2, 1, None]:
-            grouped_data[y][s] = []
+    for hk_num in range(8, 0, -1):
+        grouped_data[hk_num] = []
+    grouped_data[None] = []
 
     for mh in qs:
         y = mh.nam_hoc_ctdt
         s = mh.hoc_ky_ctdt
-        if y not in grouped_data:
-            y = None
-        if s not in grouped_data[y]:
-            s = None
-        grouped_data[y][s].append(mh)
+        if y and s and 1 <= y <= 4 and 1 <= s <= 2:
+            hk_num = (y - 1) * 2 + s
+        else:
+            hk_num = None
+        grouped_data[hk_num].append(mh)
 
-    # Loại bỏ các nhóm trống
+    # Loại bỏ các nhóm rỗng
     final_grouped_data = OrderedDict()
-    for y, semesters in grouped_data.items():
-        has_subjects_in_year = any(len(subjects) > 0 for subjects in semesters.values())
-        if has_subjects_in_year:
-            final_grouped_data[y] = OrderedDict()
-            for s, subjects in semesters.items():
-                if len(subjects) > 0:
-                    final_grouped_data[y][s] = subjects
+    for hk_num, subjects in grouped_data.items():
+        if len(subjects) > 0:
+            final_grouped_data[hk_num] = subjects
 
     return render(request, 'students/monhoc_list.html', {
         'grouped_monhocs': final_grouped_data, 
@@ -345,30 +341,21 @@ def monhoc_create(request):
         form.save()
         messages.success(request, 'Thêm môn học thành công.')
         return redirect('students:monhoc_list')
-    return render(request, 'students/monhoc_form.html', {'form': form, 'title': 'Thêm môn học'})
+    return render(request, 'students/monhoc_form.html', {'form': form, 'title': 'Thêm chương trình đào tạo'})
 
 
 @login_required
 @role_required('giaovu', 'admin')
 def monhoc_edit(request, pk):
-    mh = get_object_or_404(MonHoc, pk=pk)
-    form = MonHocForm(request.POST or None, instance=mh)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'Cập nhật môn học thành công.')
-        return redirect('students:monhoc_list')
-    return render(request, 'students/monhoc_form.html', {'form': form, 'title': 'Chỉnh sửa môn học'})
+    messages.error(request, 'Chức năng sửa môn học đã bị vô hiệu hóa.')
+    return redirect('students:monhoc_list')
 
 
 @login_required
 @role_required('giaovu', 'admin')
 def monhoc_delete(request, pk):
-    mh = get_object_or_404(MonHoc, pk=pk)
-    if request.method == 'POST':
-        mh.delete()
-        messages.success(request, 'Xóa môn học thành công.')
-        return redirect('students:monhoc_list')
-    return render(request, 'students/confirm_delete.html', {'obj': mh, 'title': 'Xóa môn học'})
+    messages.error(request, 'Chức năng xóa môn học đã bị vô hiệu hóa.')
+    return redirect('students:monhoc_list')
 
 
 # ---- Học kỳ ----
@@ -392,13 +379,8 @@ def hocky_create(request):
 @login_required
 @role_required('giaovu', 'admin')
 def hocky_edit(request, pk):
-    hk = get_object_or_404(HocKy, pk=pk)
-    form = HocKyForm(request.POST or None, instance=hk)
-    if request.method == 'POST' and form.is_valid():
-        form.save()
-        messages.success(request, 'Cập nhật học kỳ thành công.')
-        return redirect('students:hocky_list')
-    return render(request, 'students/hocky_form.html', {'form': form, 'title': 'Chỉnh sửa học kỳ'})
+    messages.error(request, 'Chức năng sửa học kỳ đã bị vô hiệu hóa.')
+    return redirect('students:hocky_list')
 
 
 # ---- Import CSV ----
@@ -797,7 +779,7 @@ def import_monhoc(request):
             return redirect('students:monhoc_list')
         except Exception as e:
             messages.error(request, f'Lỗi đọc file: {e}')
-    return render(request, 'students/import_monhoc.html', {'form': form, 'title': 'Import môn học', 'errors': errors})
+    return render(request, 'students/import_monhoc.html', {'form': form, 'title': 'Import chương trình đào tạo', 'errors': errors})
 
 
 # ---- Export Excel ----

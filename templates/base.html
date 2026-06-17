@@ -42,7 +42,7 @@
         </a>
         {% if user.is_giaovu or user.is_admin %}
         <a href="{% url 'students:monhoc_list' %}" class="{% if 'monhoc' in request.resolver_match.url_name %}active{% endif %}">
-            Môn học
+            Chương trình đào tạo
         </a>
         <a href="{% url 'students:hocky_list' %}" class="{% if 'hocky' in request.resolver_match.url_name %}active{% endif %}">
             Học kỳ
@@ -73,7 +73,7 @@
             Import sinh viên
         </a>
         <a href="{% url 'students:import_monhoc' %}">
-            Import môn học
+            Import chương trình đào tạo
         </a>
         {% endif %}
         {% endif %}

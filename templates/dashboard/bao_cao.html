@@ -1,8 +1,19 @@
 {% extends 'base.html' %}
 {% block title %}Báo cáo & Thống kê{% endblock %}
 {% block page_title %}Báo cáo và Thống kê{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+{% endblock %}
 {% block topbar_actions %}
-<a href="{% url 'dashboard:export_bao_cao' %}" class="btn btn-success btn-sm">Xuất Excel</a>
+<a href="{% url 'dashboard:export_bao_cao' %}?nam_hoc={{ nam_hoc_filter }}&ky={{ ky_filter }}" class="btn btn-success btn-sm">Xuất Excel</a>
+{% if request.user.is_giaovu or request.user.is_admin %}
+<form action="{% url 'dashboard:gui_bao_cao_covan' %}?nam_hoc={{ nam_hoc_filter }}&ky={{ ky_filter }}" method="post" style="display:inline-block; margin:0">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Bạn có chắc chắn muốn gửi báo cáo Excel tương ứng với bộ lọc hiện tại đến tất cả Cố vấn học tập của các lớp?')">
+        Gửi báo cáo cho Cố vấn
+    </button>
+</form>
+{% endif %}
 {% endblock %}
 {% block content %}
 
@@ -10,11 +21,18 @@
 <div class="card mb-4">
     <div class="card-body" style="padding:14px 20px">
         <form method="get" class="d-flex gap-2 flex-wrap align-items-center" id="filter-form">
-            <select name="hoc_ky" class="form-select" style="max-width:260px" onchange="this.form.submit()">
-                <option value="">-- Tất cả học kỳ --</option>
-                {% for hk in hockys %}
-                <option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>
+            <select name="nam_hoc" class="form-select" style="max-width:200px" onchange="this.form.submit()">
+                <option value="">-- Tất cả năm học --</option>
+                {% for nh in nam_hocs %}
+                <option value="{{ nh }}" {% if nam_hoc_filter == nh %}selected{% endif %}>Năm học {{ nh }}</option>
                 {% endfor %}
+            </select>
+
+            <select name="ky" class="form-select" style="max-width:200px" onchange="this.form.submit()">
+                <option value="">-- Tất cả học kỳ --</option>
+                <option value="1" {% if ky_filter == '1' %}selected{% endif %}>Học kỳ 1</option>
+                <option value="2" {% if ky_filter == '2' %}selected{% endif %}>Học kỳ 2</option>
+                <option value="3" {% if ky_filter == '3' %}selected{% endif %}>Học kỳ hè</option>
             </select>
 
             <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
@@ -75,7 +93,15 @@
     </div>
 
     <div class="card">
-        <div class="card-header"><span class="card-title">Sinh viên theo ngành (Đơn vị tính: Số sinh viên)</span></div>
+        <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; width:100%">
+            <span class="card-title">Thống kê sinh viên (Đơn vị tính: Số sinh viên)</span>
+            <select id="sv-chart-group-by" class="form-select form-select-sm" style="max-width:160px; padding: 2px 8px; font-size: 13px">
+                <option value="nganh" selected>Theo Ngành</option>
+                <option value="lop">Theo Lớp</option>
+                <option value="khoa">Theo Khoa</option>
+                <option value="khoa_hoc">Theo Khóa</option>
+            </select>
+        </div>
         <div class="card-body">
             <div class="chart-container" style="height:260px">
                 <canvas id="nganhChart"></canvas>
@@ -151,8 +177,33 @@
         }
     };
 
-    const nganhLabels = {{ nganh_labels|safe }};
-    const nganhData = {{ nganh_data|safe }};
+    const svDatasets = {
+        lop: {
+            labels: {{ sv_lop_labels|safe }},
+            data: {{ sv_lop_data|safe }},
+            color: '#3b82f6',
+            label: 'Số sinh viên'
+        },
+        nganh: {
+            labels: {{ sv_nganh_labels|safe }},
+            data: {{ sv_nganh_data|safe }},
+            color: '#10b981',
+            label: 'Số sinh viên'
+        },
+        khoa: {
+            labels: {{ sv_khoa_labels|safe }},
+            data: {{ sv_khoa_data|safe }},
+            color: '#f59e0b',
+            label: 'Số sinh viên'
+        },
+        khoa_hoc: {
+            labels: {{ sv_khoa_hoc_labels|safe }},
+            data: {{ sv_khoa_hoc_data|safe }},
+            color: '#8b5cf6',
+            label: 'Số sinh viên'
+        }
+    };
+
     const ttLabels = {{ tt_labels|safe }};
     const ttData = {{ tt_data|safe }};
 
@@ -160,6 +211,7 @@
     const cbCtx = document.getElementById('cbChart').getContext('2d');
     const warningChart = new Chart(cbCtx, {
         type: 'bar',
+        plugins: [ChartDataLabels],
         data: {
             labels: cbDatasets.lop.labels,
             datasets: [{
@@ -172,9 +224,23 @@
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'top',
+                    color: '#475569',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: function(value) { return value || ''; }
+                }
+            },
             scales: {
-                y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    grid: { color: '#f1f5f9' },
+                    grace: '10%'
+                },
                 x: { grid: { display: false } }
             }
         }
@@ -193,33 +259,79 @@
         }
     });
 
-    // Sinh viên theo ngành
-    const palette = ['#2563eb', '#16a34a', '#d97706', '#dc2626', '#9333ea', '#0891b2', '#ea580c', '#65a30d'];
-    if (nganhLabels.length > 0) {
-        new Chart(document.getElementById('nganhChart'), {
-            type: 'bar',
-            data: { labels: nganhLabels, datasets: [{ label: 'Sinh viên', data: nganhData, backgroundColor: palette, borderRadius: 6 }] },
-            options: {
-                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
-                plugins: { legend: { display: false } },
-                scales: { x: { beginAtZero: true, grid: { color: '#f1f5f9' } }, y: { grid: { display: false }, ticks: { font: { size: 11 } } } }
+    // Khởi tạo biểu đồ sinh viên (mặc định theo Ngành)
+    const svCtx = document.getElementById('nganhChart').getContext('2d');
+    const svChartObj = new Chart(svCtx, {
+        type: 'bar',
+        plugins: [ChartDataLabels],
+        data: {
+            labels: svDatasets.nganh.labels,
+            datasets: [{
+                label: svDatasets.nganh.label,
+                data: svDatasets.nganh.data,
+                backgroundColor: svDatasets.nganh.color,
+                borderRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                datalabels: {
+                    anchor: 'end',
+                    align: 'right',
+                    color: '#475569',
+                    font: { weight: 'bold', size: 10 },
+                    formatter: function(value) { return value || ''; }
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    grid: { color: '#f1f5f9' },
+                    grace: '10%'
+                },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
             }
-        });
-    }
+        }
+    });
+
+    // Xử lý thay đổi trục thống kê sinh viên
+    document.getElementById('sv-chart-group-by').addEventListener('change', function() {
+        const val = this.value;
+        const selected = svDatasets[val];
+        if (selected) {
+            svChartObj.data.labels = selected.labels;
+            svChartObj.data.datasets[0].data = selected.data;
+            svChartObj.data.datasets[0].backgroundColor = selected.color;
+            svChartObj.data.datasets[0].label = selected.label;
+            svChartObj.update();
+        }
+    });
 
     // Trạng thái sinh viên
     const ttColors = { 'dang_hoc': '#16a34a', 'canh_bao': '#f59e0b', 'dinh_chi': '#ef4444', 'tot_nghiep': '#2563eb', 'thoi_hoc': '#94a3b8' };
-    const ttLabelMap = { 'dang_hoc': 'Đang học', 'canh_bao': 'Cảnh báo', 'dinh_chi': 'Đình chỉ', 'tot_nghiep': 'Tốt nghiệp', 'thoi_hoc': 'Thôi học' };
+    const ttLabelMap = { 'dang_hoc': 'Đang học','canh_bao': 'Cảnh báo', 'dinh_chi': 'Đình chỉ', 'tot_nghiep': 'Tốt nghiệp', 'thoi_hoc': 'Thôi học' };
     if (ttData.length > 0) {
         new Chart(document.getElementById('ttChart'), {
             type: 'doughnut',
+            plugins: [ChartDataLabels],
             data: {
                 labels: ttLabels.map(l => ttLabelMap[l] || l),
                 datasets: [{ data: ttData, backgroundColor: ttLabels.map(l => ttColors[l] || '#94a3b8'), borderWidth: 2 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: true,
-                plugins: { legend: { position: 'bottom', labels: { font: { size: 11 } } } }
+                plugins: {
+                    legend: { position: 'bottom', labels: { font: { size: 11 } } },
+                    datalabels: {
+                        color: '#ffffff',
+                        font: { weight: 'bold', size: 12 },
+                        formatter: function(value) { return value || ''; }
+                    }
+                }
             }
         });
     }
