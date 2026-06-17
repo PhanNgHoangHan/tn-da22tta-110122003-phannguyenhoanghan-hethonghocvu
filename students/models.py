@@ -115,14 +115,14 @@ class HocKy(models.Model):
                     from datetime import date
                     if self.ky == '1':
                         if not self.ngay_bat_dau:
-                            self.ngay_bat_dau = date(start_year, 10, 1)
+                            self.ngay_bat_dau = date(start_year, 9, 5)
                         if not self.ngay_ket_thuc:
-                            self.ngay_ket_thuc = date(end_year, 1, 31)
+                            self.ngay_ket_thuc = date(start_year, 12, 31)
                     elif self.ky == '2':
                         if not self.ngay_bat_dau:
-                            self.ngay_bat_dau = date(end_year, 2, 1)
+                            self.ngay_bat_dau = date(end_year, 1, 1)
                         if not self.ngay_ket_thuc:
-                            self.ngay_ket_thuc = date(end_year, 6, 30)
+                            self.ngay_ket_thuc = date(end_year, 5, 31)
             except Exception:
                 pass
 

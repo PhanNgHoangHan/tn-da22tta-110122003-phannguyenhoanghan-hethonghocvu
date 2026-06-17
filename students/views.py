@@ -122,7 +122,7 @@ def sinhvien_detail(request, pk):
 
     from results.models import KetQuaHocTap
     from academic_warnings.models import CanhBaoHocVu
-    from results.utils import tinh_dtbctl, la_dat, diem_he4
+    from results.utils import tinh_dtbctl, la_dat, diem_he4, la_gdtc
     from collections import OrderedDict
 
     canh_baos = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao')
@@ -156,104 +156,42 @@ def sinhvien_detail(request, pk):
             data['tong_mon'] = len(kqs)
             data['tc_dang_ky'] = sum(k.mon_hoc.so_tc for k in kqs)
             data['tc_dat'] = sum(k.mon_hoc.so_tc for k in kqs if la_dat(k.diem_tk))
-            tong_tc = sum(k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
-            tong_d10 = sum(k.diem_tk * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
-            tong_d4  = sum((diem_he4(k.diem_tk) or 0) * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
+            
+            # Loại bỏ môn học Giáo dục thể chất khi tính GPA học kỳ
+            tong_tc = sum(k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None and not la_gdtc(k.mon_hoc.ma_mh))
+            tong_d10 = sum(k.diem_tk * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None and not la_gdtc(k.mon_hoc.ma_mh))
+            tong_d4  = sum((diem_he4(k.diem_tk) or 0) * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None and not la_gdtc(k.mon_hoc.ma_mh))
+            
             data['dtbchk']   = round(tong_d10 / tong_tc, 2) if tong_tc > 0 else 0.0
             data['dtbchk_4'] = round(tong_d4  / tong_tc, 2) if tong_tc > 0 else 0.0
-
-    # Tổng kết từng năm = TB cộng ĐTBCHK các HK trong năm
-    dtb_theo_nam = {}
-    for nam_hoc, hk_dict in ket_qua_theo_nam.items():
-        hk_d10 = [d['dtbchk']   for d in hk_dict.values() if d['dtbchk']   > 0]
-        hk_d4  = [d['dtbchk_4'] for d in hk_dict.values() if d['dtbchk_4'] > 0]
-        dtb_theo_nam[nam_hoc] = {
-            'dtb_10': round(sum(hk_d10) / len(hk_d10), 2) if hk_d10 else 0.0,
-            'dtb_4':  round(sum(hk_d4)  / len(hk_d4),  2) if hk_d4  else 0.0,
-            'tc_dang_ky': sum(d['tc_dang_ky'] for d in hk_dict.values()),
-            'tc_dat':     sum(d['tc_dat']     for d in hk_dict.values()),
-        }
-
-    # Tổng kết toàn khóa = TB cộng ĐTBCHK tất cả HK
-    all_d10 = [d['dtbchk']   for nam in ket_qua_theo_nam.values() for d in nam.values() if d['dtbchk']   > 0]
-    all_d4  = [d['dtbchk_4'] for nam in ket_qua_theo_nam.values() for d in nam.values() if d['dtbchk_4'] > 0]
-    toan_khoa_dtb_10 = round(sum(all_d10) / len(all_d10), 2) if all_d10 else 0.0
-    toan_khoa_dtb_4  = round(sum(all_d4)  / len(all_d4),  2) if all_d4  else 0.0
+            
+            # Tính điểm tích lũy tính đến học kỳ này
+            hk_obj = kqs[0].hoc_ky if kqs else None
+            if hk_obj:
+                ctl_10, ctl_4, tc_tl_val, _ = tinh_dtbctl(sv, hk_obj)
+            else:
+                ctl_10 = ctl_4 = 0.0
+                tc_tl_val = 0
+            
+            data['dtbctl_10'] = ctl_10
+            data['dtbctl_4']  = ctl_4
+            data['tc_tl']     = tc_tl_val
 
     # TC tích lũy (tính từ điểm tốt nhất mỗi môn, kể cả lần 2)
     dtbctl_10, dtbctl_4, tc_tl, tc_da_hoc = tinh_dtbctl(sv)
 
-    return render(request, 'students/sinhvien_detail.html', {
-        'sv': sv,
-        'canh_baos': canh_baos,
-        'ket_qua_theo_nam': ket_qua_theo_nam,
-        'dtb_theo_nam': dtb_theo_nam,
-        'toan_khoa_dtb_10': toan_khoa_dtb_10,
-        'toan_khoa_dtb_4': toan_khoa_dtb_4,
-        'tc_tl': tc_tl,
-        'tc_da_hoc': tc_da_hoc,
-    })
-
-    ket_qua_theo_nam = OrderedDict()
-    for kq in ket_qua_all:
-        nam = kq.hoc_ky.nam_hoc
-        hk_ten = str(kq.hoc_ky)
-        if nam not in ket_qua_theo_nam:
-            ket_qua_theo_nam[nam] = OrderedDict()
-        if hk_ten not in ket_qua_theo_nam[nam]:
-            ket_qua_theo_nam[nam][hk_ten] = {'ket_qua': [], 'tong_mon': 0,
-                                               'tc_dang_ky': 0, 'tc_dat': 0, 'dtbchk': 0.0}
-        ket_qua_theo_nam[nam][hk_ten]['ket_qua'].append(kq)
-
-    # Tính thống kê từng học kỳ
-    for nam, hk_dict in ket_qua_theo_nam.items():
-        for hk_ten, data in hk_dict.items():
-            kqs = data['ket_qua']
-            data['tong_mon'] = len(kqs)
-            data['tc_dang_ky'] = sum(k.mon_hoc.so_tc for k in kqs)
-            data['tc_dat'] = sum(k.mon_hoc.so_tc for k in kqs if la_dat(k.diem_tk))
-            tong_tc = sum(k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
-            tong_diem_10 = sum(k.diem_tk * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
-            tong_diem_4  = sum((diem_he4(k.diem_tk) or 0) * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
-            data['dtbchk']   = round(tong_diem_10 / tong_tc, 2) if tong_tc > 0 else 0.0
-            data['dtbchk_4'] = round(tong_diem_4  / tong_tc, 2) if tong_tc > 0 else 0.0
-
-    # Tổng hợp toàn khóa
-    dtbctl_10, dtbctl_4, tc_tl, tc_da_hoc = tinh_dtbctl(sv)
-
-    # Tính điểm tích lũy từng năm học (TB cộng ĐTBCHK các HK trong năm)
-    dtb_theo_nam = {}
-    for nam_hoc, hk_dict in ket_qua_theo_nam.items():
-        hk_dtb_10 = [d['dtbchk'] for d in hk_dict.values() if d['dtbchk'] > 0]
-        hk_dtb_4  = [d['dtbchk_4'] for d in hk_dict.values() if d['dtbchk_4'] > 0]
-        tc_nam = sum(d['tc_dang_ky'] for d in hk_dict.values())
-        tc_dat_nam = sum(d['tc_dat'] for d in hk_dict.values())
-        dtb_theo_nam[nam_hoc] = {
-            'dtb_10': round(sum(hk_dtb_10) / len(hk_dtb_10), 2) if hk_dtb_10 else 0.0,
-            'dtb_4':  round(sum(hk_dtb_4)  / len(hk_dtb_4),  2) if hk_dtb_4  else 0.0,
-            'tc_dang_ky': tc_nam,
-            'tc_dat': tc_dat_nam,
-        }
-
-    # Điểm tích lũy toàn khóa = TB cộng ĐTBCHK tất cả HK
-    all_dtb_10 = [d['dtbchk'] for nam in ket_qua_theo_nam.values()
-                  for d in nam.values() if d['dtbchk'] > 0]
-    all_dtb_4  = [d['dtbchk_4'] for nam in ket_qua_theo_nam.values()
-                  for d in nam.values() if d['dtbchk_4'] > 0]
-    toan_khoa_dtb_10 = round(sum(all_dtb_10) / len(all_dtb_10), 2) if all_dtb_10 else 0.0
-    toan_khoa_dtb_4  = round(sum(all_dtb_4)  / len(all_dtb_4),  2) if all_dtb_4  else 0.0
+    # Tổng kết toàn khóa (sử dụng tinh_dtbctl để lấy điểm tích lũy chính xác)
+    toan_khoa_dtb_10 = dtbctl_10
+    toan_khoa_dtb_4  = dtbctl_4
 
     return render(request, 'students/sinhvien_detail.html', {
         'sv': sv,
         'canh_baos': canh_baos,
         'ket_qua_theo_nam': ket_qua_theo_nam,
-        'dtb_theo_nam': dtb_theo_nam,
-        'dtbctl_10': dtbctl_10,
-        'dtbctl_4': dtbctl_4,
-        'tc_tl': tc_tl,
-        'tc_da_hoc': tc_da_hoc,
         'toan_khoa_dtb_10': toan_khoa_dtb_10,
         'toan_khoa_dtb_4': toan_khoa_dtb_4,
+        'tc_tl': tc_tl,
+        'tc_da_hoc': tc_da_hoc,
     })
 
 

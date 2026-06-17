@@ -3,7 +3,6 @@
 {% block page_title %}Chương trình đào tạo{% endblock %}
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'students:monhoc_create' %}" class="btn btn-primary btn-sm">Thêm chương trình đào tạo</a>
 <a href="{% url 'students:import_monhoc' %}" class="btn btn-secondary btn-sm">Import</a>
 {% endif %}
 {% endblock %}

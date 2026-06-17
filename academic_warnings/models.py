@@ -35,7 +35,7 @@ class CanhBaoHocVu(models.Model):
         verbose_name = 'Cảnh báo học vụ'
         verbose_name_plural = 'Cảnh báo học vụ'
         unique_together = ['sinh_vien', 'hoc_ky']
-        ordering = ['-ngay_tao']
+        ordering = ['trang_thai', '-ngay_tao']
 
     def __str__(self):
         return f"{self.sinh_vien.mssv} - {self.get_muc_canh_bao_display()} lần {self.so_lan_canh_bao} - {self.hoc_ky}"

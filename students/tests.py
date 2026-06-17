@@ -81,3 +81,71 @@ class ViewPermissionsTestCase(TestCase):
         self.assertEqual(keys, [3, 1])
         self.assertContains(response, self.monhoc.ten_mh)
         self.assertContains(response, monhoc2.ten_mh)
+
+    def test_weighted_gpa_calculation_in_student_detail(self):
+        from results.models import KetQuaHocTap
+        from students.models import SinhVien
+        
+        # Setup student profile linked to a CustomUser
+        user = CustomUser.objects.create_user(
+            username='sv2', password='password', role='sinhvien'
+        )
+        # Self.sinhvien has no SinhVien profile by default, let's link or create a new student
+        sv = SinhVien.objects.create(
+            user=user, mssv='110122002', ho_ten='Nguyen Van B', khoa='K2022'
+        )
+        
+        # Create semesters in 2022-2023
+        hk1 = HocKy.objects.create(ky='1', nam_hoc='2022-2023')
+        hk2 = HocKy.objects.create(ky='2', nam_hoc='2022-2023')
+        
+        # Subject 1 (4 credits), Subject 2 (2 credits), Subject 3 (2 credits PhysEd)
+        mh1 = MonHoc.objects.create(ma_mh='MH10', ten_mh='Mon 10', so_tc=4)
+        mh2 = MonHoc.objects.create(ma_mh='MH20', ten_mh='Mon 20', so_tc=2)
+        mh3 = MonHoc.objects.create(ma_mh='19200', ten_mh='The chat', so_tc=2)
+        
+        # Graded results:
+        # HK1: 8.0, 4 credits => 32.0. GPA = 8.0
+        # HK2: 5.0, 2 credits => 10.0. GPA = 5.0
+        # HK2 PhysEd: 9.0, 2 credits => Excluded from GPA
+        # Weighted GPA = 7.00 (system 10), 2.83 (system 4)
+        KetQuaHocTap.objects.create(
+            sinh_vien=sv, mon_hoc=mh1, hoc_ky=hk1,
+            diem_qt=8.0, diem_thi=8.0, diem_tk=8.0, lan_hoc=1
+        )
+        KetQuaHocTap.objects.create(
+            sinh_vien=sv, mon_hoc=mh2, hoc_ky=hk2,
+            diem_qt=5.0, diem_thi=5.0, diem_tk=5.0, lan_hoc=1
+        )
+        KetQuaHocTap.objects.create(
+            sinh_vien=sv, mon_hoc=mh3, hoc_ky=hk2,
+            diem_qt=9.0, diem_thi=9.0, diem_tk=9.0, lan_hoc=1
+        )
+        
+        self.client.login(username='admin', password='password')
+        response = self.client.get(reverse('students:sinhvien_detail', args=[sv.pk]))
+        self.assertEqual(response.status_code, 200)
+        
+        # Verify calculated values in context
+        ket_qua_theo_nam = response.context['ket_qua_theo_nam']
+        self.assertIn('2022-2023', ket_qua_theo_nam)
+        
+        # HK1 cumulative stats:
+        hk1_key = str(hk1)
+        self.assertIn(hk1_key, ket_qua_theo_nam['2022-2023'])
+        hk1_data = ket_qua_theo_nam['2022-2023'][hk1_key]
+        self.assertEqual(hk1_data['dtbctl_10'], 8.00)
+        self.assertEqual(hk1_data['dtbctl_4'], 3.50)
+        self.assertEqual(hk1_data['tc_tl'], 4)
+        
+        # HK2 cumulative stats:
+        hk2_key = str(hk2)
+        self.assertIn(hk2_key, ket_qua_theo_nam['2022-2023'])
+        hk2_data = ket_qua_theo_nam['2022-2023'][hk2_key]
+        self.assertEqual(hk2_data['dtbctl_10'], 7.00)
+        self.assertEqual(hk2_data['dtbctl_4'], 2.83)
+        self.assertEqual(hk2_data['tc_tl'], 8)
+        
+        # Cumulative
+        self.assertEqual(response.context['toan_khoa_dtb_10'], 7.00)
+        self.assertEqual(response.context['toan_khoa_dtb_4'], 2.83)

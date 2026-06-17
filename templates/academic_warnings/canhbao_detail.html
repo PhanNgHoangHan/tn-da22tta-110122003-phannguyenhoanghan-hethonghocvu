@@ -22,12 +22,12 @@
     </div>
     <table style="width:100%;font-size:14px">
         <tr><td style="color:#000000;padding:8px 0;width:140px"><b>Sinh viên</b></td><td><strong>{{ cb.sinh_vien.mssv }} - {{ cb.sinh_vien.ho_ten }}</strong></td></tr>
-        <tr><td style="color:#000000;padding:8px 0"><b>Ngành</b></td><td>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</td></tr>
+        <tr><td style="color:#000000;padding:8px 0"><b>Lớp</b></td><td><strong>{{ cb.sinh_vien.lop.ten_lop|default:'-' }}</strong></td></tr>
+        <tr><td style="color:#000000;padding:8px 0"><b>Ngành</b></td><td><strong>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</strong></td></tr>
         <tr>
             <td style="color:#000000;padding:8px 0"><b>Học kỳ</b></td>
             <td>
-                <span class="fw-semibold" style="white-space: nowrap;">Học kỳ {{ cb.hoc_ky.ky }}</span>
-                <span class="text-muted" style="font-size: 12px; margin-left: 8px; white-space: nowrap;">({{ cb.hoc_ky.nam_hoc }})</span>
+                <span class="fw-semibold" style="white-space: nowrap;">Học kỳ {{ cb.hoc_ky.ky }} ({{ cb.hoc_ky.nam_hoc }})</span>
             </td>
         </tr>
         <tr>

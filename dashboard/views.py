@@ -93,8 +93,12 @@ def dashboard_covan(request):
     """Dashboard dành cho cố vấn học tập."""
     svs = SinhVien.objects.filter(lop__covan=request.user)
     total_sv = svs.count()
-    sv_canh_bao = svs.filter(trang_thai='canh_bao').count()
-    sv_dang_hoc = svs.filter(trang_thai='dang_hoc').count()
+    # sv_canh_bao: số sinh viên đang có cảnh báo học vụ (lần 1 hoặc lần 2)
+    sv_canh_bao = CanhBaoHocVu.objects.filter(
+        sinh_vien__lop__covan=request.user, muc_canh_bao='canh_bao'
+    ).values('sinh_vien').distinct().count()
+    # sv_dang_hoc: bao gồm cả dang_hoc và canh_bao (tương thích dữ liệu cũ)
+    sv_dang_hoc = svs.filter(trang_thai__in=['dang_hoc', 'canh_bao']).count()
 
     # Cảnh báo mới
     canh_baos_moi = CanhBaoHocVu.objects.filter(
@@ -149,8 +153,12 @@ def dashboard_covan(request):
 def dashboard_giaovu(request):
     """Dashboard dành cho giáo vụ và admin."""
     total_sv = SinhVien.objects.count()
-    sv_canh_bao = SinhVien.objects.filter(trang_thai='canh_bao').count()
-    sv_dang_hoc = SinhVien.objects.filter(trang_thai='dang_hoc').count()
+    # sv_canh_bao: số sinh viên đang có cảnh báo học vụ (lần 1 hoặc lần 2)
+    sv_canh_bao = CanhBaoHocVu.objects.filter(
+        muc_canh_bao='canh_bao'
+    ).values('sinh_vien').distinct().count()
+    # sv_dang_hoc: bao gồm cả dang_hoc và canh_bao (tương thích dữ liệu cũ)
+    sv_dang_hoc = SinhVien.objects.filter(trang_thai__in=['dang_hoc', 'canh_bao']).count()
     total_mon = MonHoc.objects.count()
     total_canh_bao = CanhBaoHocVu.objects.filter(trang_thai='chua_xu_ly', muc_canh_bao='canh_bao').exclude(nguoi_dung_an=request.user).count()
 
@@ -220,7 +228,8 @@ def bao_cao(request):
     # Thống kê tổng hợp
     stats = {
         'total_sv': qs_sv.count(),
-        'sv_dang_hoc': qs_sv.filter(trang_thai='dang_hoc').count(),
+        # sv_dang_hoc: bao gồm cả dang_hoc và canh_bao (tương thích dữ liệu cũ)
+        'sv_dang_hoc': qs_sv.filter(trang_thai__in=['dang_hoc', 'canh_bao']).count(),
         'sv_canh_bao': qs_cb.filter(muc_canh_bao='canh_bao').count(),
         'sv_canh_bao_2': qs_cb.filter(muc_canh_bao='canh_bao', so_lan_canh_bao=2).count(),
         'sv_canh_bao_3': qs_cb.filter(muc_canh_bao='buoc_thoi_hoc').count(),
@@ -300,6 +309,8 @@ def bao_cao(request):
 
 def generate_excel_bytes(svs_queryset, hks, nam_hoc_filter, ky_filter, recipient_name=None):
     import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
     from io import BytesIO
     from results.utils import tinh_dtbctl, tinh_dtbchk
 
@@ -307,43 +318,169 @@ def generate_excel_bytes(svs_queryset, hks, nam_hoc_filter, ky_filter, recipient
     ws = wb.active
     ws.title = 'Báo cáo tổng hợp'
 
+    # Stylings
+    title_font = Font(name='Segoe UI', size=16, bold=True, color='1F4E78')
+    subtitle_font = Font(name='Segoe UI', size=11, italic=True, color='566573')
+    header_font = Font(name='Segoe UI', size=11, bold=True, color='FFFFFF')
+    header_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid') # Slate/Navy Blue
+    
+    class_header_font = Font(name='Segoe UI', size=11, bold=True, color='1F4E78')
+    class_header_fill = PatternFill(start_color='EBF5FB', end_color='EBF5FB', fill_type='solid') # Soft blue highlight
+    
+    regular_font = Font(name='Segoe UI', size=11)
+    
+    thin_border_side = Side(border_style='thin', color='D5D8DC')
+    thin_border = Border(left=thin_border_side, right=thin_border_side, top=thin_border_side, bottom=thin_border_side)
+    
+    align_center = Alignment(horizontal='center', vertical='center')
+    align_left = Alignment(horizontal='left', vertical='center')
+    align_right = Alignment(horizontal='right', vertical='center')
+
+    # Title info
     ws.append(['BÁO CÁO TỔNG HỢP KẾT QUẢ HỌC TẬP & CẢNH BÁO HỌC VỤ'])
+    ws.cell(row=1, column=1).font = title_font
+    
     filter_desc = []
     if nam_hoc_filter:
         filter_desc.append(f"Năm học: {nam_hoc_filter}")
     if ky_filter:
         filter_desc.append(f"Học kỳ: {ky_filter}")
-    ws.append([f"Bộ lọc: {', '.join(filter_desc) if filter_desc else 'Tất cả'}" ])
+    ws.append([f"{', '.join(filter_desc) if filter_desc else 'Tất cả'}"])
+    ws.cell(row=2, column=1).font = subtitle_font
+    
+    row_offset = 3
     if recipient_name:
         ws.append([f"Người nhận: {recipient_name}"])
-    ws.append([])
+        ws.cell(row=3, column=1).font = subtitle_font
+        row_offset = 4
+    
+    ws.append([]) # Empty row
 
-    last_hk = hks.order_by('-nam_hoc', '-ky').first() if (nam_hoc_filter or ky_filter) else None
+    # Sort queryset by class name and mssv
+    svs_queryset = svs_queryset.order_by('lop__ten_lop', 'mssv')
 
-    if last_hk:
-        headers = ['MSSV', 'Họ tên', 'Lớp', 'Ngành', 'ĐTBCHK (Hệ 10)', 'ĐTBCHK (Hệ 4)', 'ĐTBCTL (Hệ 10)', 'ĐTBCTL (Hệ 4)', 'TC tích lũy', 'Cảnh báo học vụ']
+    is_filtered = bool(nam_hoc_filter or ky_filter)
+    hks_ordered = hks.order_by('nam_hoc', 'ky')
+
+    if is_filtered:
+        headers = ['MSSV', 'Họ tên', 'Lớp', 'Ngành']
+        for hk in hks_ordered:
+            headers.extend([
+                f'ĐTBCHK HK{hk.ky} (Hệ 10)',
+                f'ĐTBCHK HK{hk.ky} (Hệ 4)',
+                f'ĐTBCTL HK{hk.ky} (Hệ 10)',
+                f'ĐTBCTL HK{hk.ky} (Hệ 4)',
+                f'Cảnh báo HK{hk.ky}'
+            ])
     else:
-        headers = ['MSSV', 'Họ tên', 'Lớp', 'Ngành', 'ĐTBCTL (Hệ 10)', 'ĐTBCTL (Hệ 4)', 'TC tích lũy', 'Trạng thái hiện tại', 'Cảnh báo học vụ mới nhất']
+        headers = ['MSSV', 'Họ tên', 'Lớp', 'Ngành', 'ĐTBCTL (Hệ 10)', 'ĐTBCTL (Hệ 4)', 'Trạng thái hiện tại', 'Cảnh báo học vụ mới nhất']
+
     ws.append(headers)
+    header_row_idx = ws.max_row
+    
+    # Format headers
+    for col_idx in range(1, len(headers) + 1):
+        cell = ws.cell(row=header_row_idx, column=col_idx)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = align_center
+        cell.border = thin_border
+
+    current_lop = None
 
     for sv in svs_queryset:
-        dtbctl, dtbctl_4, tc, _ = tinh_dtbctl(sv, hoc_ky=last_hk)
-        if last_hk:
-            dtbchk, dtbchk_4, _, _ = tinh_dtbchk(sv, last_hk)
-            cb = CanhBaoHocVu.objects.filter(sinh_vien=sv, hoc_ky=last_hk).first()
-            cb_str = cb.get_muc_canh_bao_display() if cb else 'Không'
-            row = [
-                sv.mssv, sv.ho_ten, sv.lop.ten_lop if sv.lop else '', sv.nganh.ten_nganh if sv.nganh else '',
-                dtbchk, dtbchk_4, dtbctl, dtbctl_4, tc, cb_str
-            ]
+        lop_name = sv.lop.ten_lop if sv.lop else 'Chưa xếp lớp'
+        
+        # Check for class change to append separator
+        if lop_name != current_lop:
+            if current_lop is not None:
+                ws.append([]) # Empty row separator
+            
+            # Append class header row
+            ws.append([f"Lớp: {lop_name}"])
+            class_row_idx = ws.max_row
+            # Merge class header row across all columns
+            ws.merge_cells(start_row=class_row_idx, start_column=1, end_row=class_row_idx, end_column=len(headers))
+            # Format merged class header cell
+            class_cell = ws.cell(row=class_row_idx, column=1)
+            class_cell.font = class_header_font
+            class_cell.fill = class_header_fill
+            class_cell.alignment = align_left
+            
+            # Apply border to all cells in the merged row to make it neat
+            for col_idx in range(1, len(headers) + 1):
+                ws.cell(row=class_row_idx, column=col_idx).border = thin_border
+                
+            current_lop = lop_name
+
+        if is_filtered:
+            row_data = [sv.mssv, sv.ho_ten, lop_name, sv.nganh.ten_nganh if sv.nganh else '']
+            for hk in hks_ordered:
+                dtbchk, dtbchk_4, tc_hk, _ = tinh_dtbchk(sv, hk)
+                dtbctl, dtbctl_4, tc_ctl_da_hoc, _ = tinh_dtbctl(sv, hk)
+                cb = CanhBaoHocVu.objects.filter(sinh_vien=sv, hoc_ky=hk).first()
+                cb_str = cb.get_muc_canh_bao_display() if cb else 'Không'
+                
+                # Clean value formatting: display '-' if student was not active
+                val_dtbchk = dtbchk if tc_hk > 0 else '-'
+                val_dtbchk_4 = dtbchk_4 if tc_hk > 0 else '-'
+                val_dtbctl = dtbctl if tc_ctl_da_hoc > 0 else '-'
+                val_dtbctl_4 = dtbctl_4 if tc_ctl_da_hoc > 0 else '-'
+                
+                row_data.extend([val_dtbchk, val_dtbchk_4, val_dtbctl, val_dtbctl_4, cb_str])
+                
+            ws.append(row_data)
+            data_row_idx = ws.max_row
+            # Format data row
+            for col_idx in range(1, len(headers) + 1):
+                cell = ws.cell(row=data_row_idx, column=col_idx)
+                cell.font = regular_font
+                cell.border = thin_border
+                # Alignments
+                if col_idx in [1, 3]: # MSSV, Lớp
+                    cell.alignment = align_center
+                elif col_idx in [2, 4]: # Họ tên, Ngành
+                    cell.alignment = align_left
+                else:
+                    rel_idx = (col_idx - 5) % 5
+                    if rel_idx == 4: # Cảnh báo
+                        cell.alignment = align_center
+                    else: # GPAs
+                        cell.alignment = align_right
         else:
+            dtbctl, dtbctl_4, _, _ = tinh_dtbctl(sv)
             cb = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao').first()
             cb_str = cb.get_muc_canh_bao_display() if cb else 'Không'
-            row = [
-                sv.mssv, sv.ho_ten, sv.lop.ten_lop if sv.lop else '', sv.nganh.ten_nganh if sv.nganh else '',
-                dtbctl, dtbctl_4, tc, sv.get_trang_thai_display(), cb_str
+            row_data = [
+                sv.mssv, sv.ho_ten, lop_name, sv.nganh.ten_nganh if sv.nganh else '',
+                dtbctl, dtbctl_4, sv.get_trang_thai_display(), cb_str
             ]
-        ws.append(row)
+            ws.append(row_data)
+            data_row_idx = ws.max_row
+            # Format data row
+            for col_idx in range(1, len(headers) + 1):
+                cell = ws.cell(row=data_row_idx, column=col_idx)
+                cell.font = regular_font
+                cell.border = thin_border
+                if col_idx in [1, 3, 7, 8]: # MSSV, Lớp, Trạng thái, Cảnh báo
+                    cell.alignment = align_center
+                elif col_idx in [5, 6]: # Numeric GPAs
+                    cell.alignment = align_right
+                else: # Họ tên, Ngành
+                    cell.alignment = align_left
+
+    # Auto-adjust column widths, ignoring the title and header/separator rows
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            # Skip title rows and class separator rows for width calculation
+            val = str(cell.value or '')
+            if cell.row <= (row_offset + 2) or val.startswith("Lớp: "):
+                continue
+            if len(val) > max_len:
+                max_len = len(val)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 11)
 
     output = BytesIO()
     wb.save(output)
@@ -436,7 +573,15 @@ def gui_bao_cao_covan(request):
             recipient_name=f"Cố vấn học tập {covan.full_name}"
         )
 
-        filter_text = f"HK{ky_filter} ({nam_hoc_filter})" if (nam_hoc_filter and ky_filter) else (nam_hoc_filter or f"HK{ky_filter}" or "tất cả học kỳ")
+        if nam_hoc_filter and ky_filter:
+            filter_text = f"Học kỳ {ky_filter} năm học {nam_hoc_filter}"
+        elif nam_hoc_filter:
+            filter_text = f"Năm học {nam_hoc_filter}"
+        elif ky_filter:
+            filter_text = f"Học kỳ {ky_filter}"
+        else:
+            filter_text = f"Tất cả học kỳ"
+
         subject = f"[TVU] Báo cáo học tập & Cảnh báo học vụ lớp phụ trách - {filter_text}"
         body = f"""Kính gửi Thầy/Cô cố vấn học tập {covan.full_name},
 

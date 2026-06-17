@@ -3,7 +3,6 @@
 {% block page_title %}Danh sách sinh viên{% endblock %}
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'students:sinhvien_create' %}" class="btn btn-primary btn-sm">Thêm</a>
 <a href="{% url 'students:import_sinhvien' %}" class="btn btn-secondary btn-sm">Import</a>
 {% endif %}
 {% if not request.user.is_sinhvien %}

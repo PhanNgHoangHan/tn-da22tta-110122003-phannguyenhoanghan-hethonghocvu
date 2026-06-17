@@ -79,49 +79,29 @@
 {% if ket_qua_theo_nam %}
 {% for nam_hoc, hk_list in ket_qua_theo_nam.items %}
 <div class="card mb-4">
-    <div class="card-header" style="background:#1e293b;color:white;border-radius:12px 12px 0 0">
-        <span class="card-title" style="color:white;font-size:15px">Năm học {{ nam_hoc }}</span>
+    <div class="card-header" style="background:#0f172a;color:white;border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #1e293b">
+        <span class="card-title" style="color:white;font-size:14.5px;margin:0">Năm học {{ nam_hoc }}</span>
     </div>
-
-    <!-- Tổng kết năm học -->
-    {% for nam_key, nam_data in dtb_theo_nam.items %}{% if nam_key == nam_hoc %}
-    <div style="background:#f1f5f9;padding:10px 20px;border-bottom:2px solid #e2e8f0;display:flex;gap:20px;flex-wrap:wrap;align-items:center">
-        <span style="font-size:12.5px;color:#475569;font-weight:600">Tổng kết năm {{ nam_hoc }}:</span>
-        <span style="font-size:13px">TC đăng ký: <strong>{{ nam_data.tc_dang_ky }}</strong></span>
-        <span style="font-size:13px">TC đạt: <strong style="color:#16a34a">{{ nam_data.tc_dat }}</strong></span>
-        <span style="font-size:13px">Điểm hệ 10:
-            <strong style="color:{% if nam_data.dtb_10 >= 7.0 %}#16a34a{% elif nam_data.dtb_10 >= 5.0 %}#d97706{% else %}#dc2626{% endif %}">
-                {{ nam_data.dtb_10 }}
-            </strong>
-        </span>
-        <span style="font-size:13px">Điểm hệ 4:
-            <strong style="color:{% if nam_data.dtb_4 >= 3.0 %}#16a34a{% elif nam_data.dtb_4 >= 2.0 %}#d97706{% else %}#dc2626{% endif %}">
-                {{ nam_data.dtb_4 }}
-            </strong>
-        </span>
-    </div>
-    {% endif %}{% endfor %}
 
     <!-- Từng học kỳ -->
     {% for hk_ten, hk_data in hk_list.items %}
     <div style="border-bottom:1px solid #f1f5f9">
         <!-- Header học kỳ -->
-        <div style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <span style="font-weight:600;color:#374151;font-size:13.5px">{{ hk_ten }}</span>
-            <div style="display:flex;gap:16px;font-size:12.5px;color:#64748b;flex-wrap:wrap">
-                <span>Số môn: <strong style="color:#1e293b">{{ hk_data.tong_mon }}</strong></span>
-                <span>TC đăng ký: <strong style="color:#1e293b">{{ hk_data.tc_dang_ky }}</strong></span>
-                <span>TC đạt: <strong style="color:#16a34a">{{ hk_data.tc_dat }}</strong></span>
-                <span>ĐTBCHK hệ 10:
-                    <strong style="color:{% if hk_data.dtbchk >= 7.0 %}#16a34a{% elif hk_data.dtbchk >= 5.0 %}#d97706{% else %}#dc2626{% endif %}">
-                        {{ hk_data.dtbchk }}
-                    </strong>
-                </span>
-                <span>ĐTBCHK hệ 4:
-                    <strong style="color:{% if hk_data.dtbchk_4 >= 3.0 %}#16a34a{% elif hk_data.dtbchk_4 >= 2.0 %}#d97706{% else %}#dc2626{% endif %}">
-                        {{ hk_data.dtbchk_4 }}
-                    </strong>
-                </span>
+        <div style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0">
+            <span style="font-weight:600;color:#1e293b;font-size:13.5px">{{ hk_ten }}</span>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">
+                <!-- Semester Stats Pill -->
+                <div style="background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Học kỳ:</span>
+                    <span style="border-right:1px solid #bae6fd;padding-right:8px">ĐK: <strong>{{ hk_data.tc_dang_ky }}</strong> / Đạt: <strong>{{ hk_data.tc_dat }}</strong></span>
+                    <span>GPA 10: <strong style="color:#0284c7">{{ hk_data.dtbchk }}</strong> | GPA 4: <strong style="color:#0284c7">{{ hk_data.dtbchk_4 }}</strong></span>
+                </div>
+                <!-- Cumulative Stats Pill -->
+                <div style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Tích lũy:</span>
+                    <span style="border-right:1px solid #bbf7d0;padding-right:8px">TC: <strong>{{ hk_data.tc_tl }}</strong></span>
+                    <span>ĐTB 10: <strong style="color:#16a34a">{{ hk_data.dtbctl_10 }}</strong> | ĐTB 4: <strong style="color:#16a34a">{{ hk_data.dtbctl_4 }}</strong></span>
+                </div>
             </div>
         </div>
 

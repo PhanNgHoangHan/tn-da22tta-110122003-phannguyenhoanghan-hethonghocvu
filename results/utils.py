@@ -109,6 +109,14 @@ def la_dat(diem_10):
     return diem_10 is not None and diem_10 >= 4.0
 
 
+def la_gdtc(ma_mh):
+    """Kiểm tra môn học có phải Giáo dục thể chất hay không (loại trừ Giáo dục quốc phòng 190)."""
+    if not ma_mh:
+        return False
+    cleaned = ma_mh.strip()
+    return cleaned.startswith('19') and not cleaned.startswith('190')
+
+
 # ─── Tính điểm trung bình ──────────────────────────────────────────────────
 
 def tinh_dtbchk(sinh_vien, hoc_ky):
@@ -116,6 +124,7 @@ def tinh_dtbchk(sinh_vien, hoc_ky):
     Tính ĐTBCHK hệ 10 = Σ(điểm_i × TC_i) / Σ(TC_i).
     Tính ĐTBCHK hệ 4  = Σ(diem_he4_i × TC_i) / Σ(TC_i).
     Chỉ tính lần học đầu tiên (lan_hoc=1) trong HK - đúng quy chế.
+    Loại trừ môn Giáo dục thể chất và Giáo dục quốc phòng (mã bắt đầu bằng 19) khỏi ĐTB.
     Trả về (dtbchk_10, dtbchk_4, tong_tc_hk, tc_dat_hk).
     """
     from results.models import KetQuaHocTap
@@ -123,29 +132,38 @@ def tinh_dtbchk(sinh_vien, hoc_ky):
         sinh_vien=sinh_vien, hoc_ky=hoc_ky, diem_tk__isnull=False, lan_hoc=1
     ).select_related('mon_hoc')
 
-    tong_tc = 0
+    tong_tc_gpa = 0
     tong_diem_10 = 0.0
     tong_diem_4 = 0.0
+    
+    tong_tc_hk = 0
     tc_dat = 0
     for kq in ket_qua:
         tc = kq.mon_hoc.so_tc
-        tong_tc += tc
-        tong_diem_10 += (kq.diem_tk or 0) * tc
-        tong_diem_4  += (diem_he4(kq.diem_tk) or 0) * tc
+        tong_tc_hk += tc
         if la_dat(kq.diem_tk):
             tc_dat += tc
+            
+        # Loại bỏ môn Giáo dục thể chất khỏi tính ĐTB
+        if la_gdtc(kq.mon_hoc.ma_mh):
+            continue
+            
+        tong_tc_gpa += tc
+        tong_diem_10 += (kq.diem_tk or 0) * tc
+        tong_diem_4  += (diem_he4(kq.diem_tk) or 0) * tc
 
-    if tong_tc == 0:
-        return 0.0, 0.0, 0, 0
-    return (round(tong_diem_10 / tong_tc, 2),
-            round(tong_diem_4  / tong_tc, 2),
-            tong_tc, tc_dat)
+    if tong_tc_gpa == 0:
+        return 0.0, 0.0, tong_tc_hk, tc_dat
+    return (round(tong_diem_10 / tong_tc_gpa, 2),
+            round(tong_diem_4  / tong_tc_gpa, 2),
+            tong_tc_hk, tc_dat)
 
 
 def tinh_dtbctl(sinh_vien, hoc_ky=None):
     """
     Tính ĐTBCTL hệ 10 và hệ 4 (lấy điểm tốt nhất mỗi môn, trọng số TC, kể cả F).
     Chỉ tính các học kỳ từ trước đến học kỳ `hoc_ky` (nếu có).
+    Loại trừ môn Giáo dục thể chất và Giáo dục quốc phòng (mã bắt đầu bằng 19) khỏi ĐTBCTL.
     Trả về (dtbctl_10, dtbctl_4, tc_tich_luy, tong_tc_da_hoc).
     """
     from results.models import KetQuaHocTap
@@ -160,24 +178,31 @@ def tinh_dtbctl(sinh_vien, hoc_ky=None):
 
     mon_ids = qs.values_list('mon_hoc_id', flat=True).distinct()
 
-    tong_tc = 0
+    tong_tc_gpa = 0
     tong_diem_10 = 0.0
     tong_diem_4  = 0.0
     tc_tich_luy  = 0
+    tong_tc_da_hoc = 0
 
     for mon_id in mon_ids:
         best = qs.filter(mon_hoc_id=mon_id).order_by('-diem_tk').first()
         if best:
             tc = best.mon_hoc.so_tc
-            tong_tc += tc
-            tong_diem_10 += (best.diem_tk or 0) * tc
-            tong_diem_4  += (diem_he4(best.diem_tk) or 0) * tc
+            tong_tc_da_hoc += tc
             if la_dat(best.diem_tk):
                 tc_tich_luy += tc
+                
+            # Loại bỏ môn Giáo dục thể chất khỏi tính ĐTB
+            if la_gdtc(best.mon_hoc.ma_mh):
+                continue
+                
+            tong_tc_gpa += tc
+            tong_diem_10 += (best.diem_tk or 0) * tc
+            tong_diem_4  += (diem_he4(best.diem_tk) or 0) * tc
 
-    dtbctl_10 = round(tong_diem_10 / tong_tc, 2) if tong_tc > 0 else 0.0
-    dtbctl_4  = round(tong_diem_4  / tong_tc, 2) if tong_tc > 0 else 0.0
-    return dtbctl_10, dtbctl_4, tc_tich_luy, tong_tc
+    dtbctl_10 = round(tong_diem_10 / tong_tc_gpa, 2) if tong_tc_gpa > 0 else 0.0
+    dtbctl_4  = round(tong_diem_4  / tong_tc_gpa, 2) if tong_tc_gpa > 0 else 0.0
+    return dtbctl_10, dtbctl_4, tc_tich_luy, tong_tc_da_hoc
 
 
 
@@ -313,10 +338,10 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
         if tc_khong_dat_hk > tc_hk * 0.5:
             pct = tc_khong_dat_hk / tc_hk * 100
             ly_do_a.append(
-                f'TC không đạt trong HK {tc_khong_dat_hk}/{tc_hk} TC ({pct:.0f}% > 50%)'
+                f'Tín chỉ không đạt trong học kỳ {tc_khong_dat_hk}/{tc_hk} tín chỉ ({pct:.0f}% > 50%)'
             )
         if tc_no_dong > 24:
-            ly_do_a.append(f'TC nợ đọng từ đầu khóa {tc_no_dong} TC > 24 TC')
+            ly_do_a.append(f'Tín chỉ nợ đọng từ đầu khóa {tc_no_dong} tín chỉ > 24 tín chỉ')
         if ly_do_a:
             vi_pham.append('; '.join(ly_do_a))
 
@@ -325,8 +350,7 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
         nguong_hk = 0.80 if hk_dau else 1.00
         if dtbchk_4 < nguong_hk:
             vi_pham.append(
-                f'ĐTBCHK hệ 4 {dtbchk_4:.2f} < {nguong_hk} '
-                f'({"HK đầu khóa" if hk_dau else "HK tiếp theo"})'
+                f'Điểm trung bình học kỳ hệ 4 {dtbchk_4:.2f} < {nguong_hk:.2f}'
             )
 
     # ── Điều kiện c ──────────────────────────────────────────────────────
@@ -334,13 +358,13 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
         nguong_ctl = {1: 1.20, 2: 1.40, 3: 1.60, 4: 1.80}.get(min(nam_hoc, 4), 1.80)
         if dtbctl_4 < nguong_ctl:
             vi_pham.append(
-                f'ĐTBCTL hệ 4 {dtbctl_4:.2f} < {nguong_ctl} (năm thứ {nam_hoc})'
+                f'Điểm trung bình tích lũy hệ 4 {dtbctl_4:.2f} < {nguong_ctl:.2f} (năm thứ {nam_hoc})'
             )
 
 
     # ── Điều kiện d ──────────────────────────────────────────────────────
     if khong_dang_ky:
-        vi_pham.append('Không đăng ký học trong HK chính mà không được phép')
+        vi_pham.append('Không đăng ký học trong học kỳ chính mà không được phép')
 
     if not vi_pham:
         return False, ''
@@ -426,7 +450,7 @@ def xac_dinh_muc_canh_bao(sinh_vien, hoc_ky, so_lan_lien_tiep):
                 # Tính ĐTBCHK hệ 4 học kỳ này
                 _, dtbchk_4, tong_tc_hk, _ = tinh_dtbchk(sinh_vien, hoc_ky)
                 if tong_tc_hk > 0 and dtbchk_4 < 1.00:
-                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở HK chính trước ({hk_truoc}) và ĐTBCHK hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00) (Buộc thôi học).'
+                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở học kỳ chính trước ({hk_truoc}) và Điểm trung bình học kỳ hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00) (Buộc thôi học).'
 
     return 'canh_bao', ''
 
@@ -494,15 +518,11 @@ def dong_bo_canh_bao_sinh_vien(sinh_vien):
 
     # Cập nhật trạng thái sinh viên:
     # 1. Nếu có bất kỳ cảnh báo "buộc thôi học" nào -> dinh_chi
-    # 2. Nếu học kỳ có điểm gần đây nhất bị cảnh báo học vụ -> canh_bao
+    # 2. Cảnh báo lần 1 và lần 2 (canh_bao) vẫn tính là dang_hoc
     # 3. Ngược lại -> dang_hoc
     has_bth = CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, muc_canh_bao='buoc_thoi_hoc').exists()
     if has_bth:
         sinh_vien.trang_thai = 'dinh_chi'
     else:
-        last_hk = hockys.last()
-        if last_hk and CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, hoc_ky=last_hk).exists():
-            sinh_vien.trang_thai = 'canh_bao'
-        else:
-            sinh_vien.trang_thai = 'dang_hoc'
+        sinh_vien.trang_thai = 'dang_hoc'
     sinh_vien.save()

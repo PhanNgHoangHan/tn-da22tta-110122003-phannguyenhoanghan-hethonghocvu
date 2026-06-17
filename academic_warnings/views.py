@@ -11,7 +11,7 @@ from results.utils import kiem_tra_canh_bao, dem_canh_bao_lien_tiep, xac_dinh_mu
 
 @login_required
 def canhbao_list(request):
-    qs = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky', 'sinh_vien__nganh', 'sinh_vien__lop').exclude(nguoi_dung_an=request.user)
+    qs = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky', 'sinh_vien__nganh', 'sinh_vien__lop').exclude(nguoi_dung_an=request.user).order_by('trang_thai', '-ngay_tao')
 
     muc       = request.GET.get('muc', '')
     trang_thai = request.GET.get('trang_thai', '')
@@ -182,7 +182,7 @@ def canhbao_gui_thong_bao(request, pk):
 
 Hệ thống Quản lý Học vụ Đại học Trà Vinh xin thông báo về tình trạng học tập của sinh viên:
 - Họ tên: {cb.sinh_vien.ho_ten}
-- MSSV: {cb.sinh_vien.mssv}
+- Mã số sinh viên: {cb.sinh_vien.mssv}
 - Lớp: {cb.sinh_vien.lop.ten_lop if cb.sinh_vien.lop else '-'}
 - Học kỳ cảnh báo: {cb.hoc_ky}
 - Mức cảnh báo: {cb.get_muc_canh_bao_display()} (Lần thứ: {cb.so_lan_canh_bao})
@@ -261,7 +261,7 @@ def canhbao_gui_thong_bao_hang_loat(request):
 
 Hệ thống Quản lý Học vụ Đại học Trà Vinh xin thông báo về tình trạng học tập của sinh viên:
 - Họ tên: {cb.sinh_vien.ho_ten}
-- MSSV: {cb.sinh_vien.mssv}
+- Mã số sinh viên: {cb.sinh_vien.mssv}
 - Lớp: {cb.sinh_vien.lop.ten_lop if cb.sinh_vien.lop else '-'}
 - Học kỳ cảnh báo: {cb.hoc_ky}
 - Mức cảnh báo: {cb.get_muc_canh_bao_display()} (Lần thứ: {cb.so_lan_canh_bao})
@@ -292,7 +292,7 @@ Phòng Giáo vụ - Đại học Trà Vinh
             success_count += 1
 
     if success_count > 0:
-        messages.success(request, f'Đã gửi email thông báo học vụ thành công cho {success_count} sinh viên (và cố vấn tương ứng).')
+        messages.success(request, f'Đã gửi email thông báo học vụ thành công cho {success_count} sinh viên.')
     if errors:
         messages.error(request, f'Lỗi gửi mail ở {len(errors)} sinh viên: {", ".join(errors[:5])}')
         

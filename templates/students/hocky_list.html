@@ -2,9 +2,6 @@
 {% block title %}Học kỳ{% endblock %}
 {% block page_title %}Quản lý học kỳ{% endblock %}
 {% block topbar_actions %}
-{% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'students:hocky_create' %}" class="btn btn-primary btn-sm">Thêm học kỳ</a>
-{% endif %}
 {% endblock %}
 {% block content %}
 <div class="card">

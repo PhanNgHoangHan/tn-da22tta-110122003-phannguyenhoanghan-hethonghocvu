@@ -7,7 +7,7 @@ from django.http import HttpResponse, JsonResponse
 import openpyxl
 from .models import KetQuaHocTap
 from .forms import KetQuaForm, ImportDiemForm, FilterKetQuaForm
-from .utils import tinh_dtbctl, tinh_dtbchk, get_phan_phoi_diem, kiem_tra_canh_bao, dem_canh_bao_lien_tiep, xac_dinh_muc_canh_bao, dong_bo_canh_bao_sinh_vien
+from .utils import tinh_dtbctl, tinh_dtbchk, get_phan_phoi_diem, kiem_tra_canh_bao, dem_canh_bao_lien_tiep, xac_dinh_muc_canh_bao, dong_bo_canh_bao_sinh_vien, la_gdtc
 from students.models import SinhVien, MonHoc, HocKy
 from academic_warnings.models import CanhBaoHocVu
 
@@ -77,47 +77,52 @@ def ketqua_list(request):
                                           'tc_dang_ky': 0, 'tc_dat': 0}
             theo_nam[nam][hk_ten]['ket_qua'].append(kq)
 
-        # Tính ĐTBCHK từng HK và tổng kết từng năm
-        all_dtb_10 = []
-        all_dtb_4  = []
+        # Tính ĐTBCHK từng HK và tổng kết từng năm (loại bỏ thể chất khỏi ĐTB, hiển thị tích lũy cộng dồn)
         for nam, hk_dict in theo_nam.items():
-            nam_dtb_10 = []
-            nam_dtb_4  = []
             for hk_ten, data in hk_dict.items():
                 kqs = data['ket_qua']
-                tong_tc = sum(k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None)
-                if tong_tc > 0:
-                    d10 = round(sum(k.diem_tk * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None) / tong_tc, 2)
-                    d4  = round(sum((_diem_he4(k.diem_tk) or 0) * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None) / tong_tc, 2)
+                tc_dang_ky = sum(k.mon_hoc.so_tc for k in kqs)
+                
+                # Tính ĐTBCHK (loại bỏ Giáo dục thể chất)
+                tong_tc_gpa = sum(k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None and not la_gdtc(k.mon_hoc.ma_mh))
+                if tong_tc_gpa > 0:
+                    d10 = round(sum(k.diem_tk * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None and not la_gdtc(k.mon_hoc.ma_mh)) / tong_tc_gpa, 2)
+                    d4  = round(sum((_diem_he4(k.diem_tk) or 0) * k.mon_hoc.so_tc for k in kqs if k.diem_tk is not None and not la_gdtc(k.mon_hoc.ma_mh)) / tong_tc_gpa, 2)
                 else:
                     d10 = d4 = 0.0
+                    
                 data['dtbchk_10']  = d10
                 data['dtbchk_4']   = d4
-                data['tc_dang_ky'] = tong_tc
+                data['tc_dang_ky'] = tc_dang_ky
                 data['tc_dat']     = sum(k.mon_hoc.so_tc for k in kqs if la_dat(k.diem_tk))
-                if d10 > 0:
-                    nam_dtb_10.append(d10)
-                    nam_dtb_4.append(d4)
-                    all_dtb_10.append(d10)
-                    all_dtb_4.append(d4)
-            # Tổng kết năm = TB cộng các HK trong năm
-            theo_nam[nam]['tong_ket'] = {
-                'dtb_10': round(sum(nam_dtb_10) / len(nam_dtb_10), 2) if nam_dtb_10 else 0.0,
-                'dtb_4':  round(sum(nam_dtb_4)  / len(nam_dtb_4),  2) if nam_dtb_4  else 0.0,
-                'tc_dang_ky': sum(d['tc_dang_ky'] for k, d in hk_dict.items() if isinstance(d, dict) and 'tc_dang_ky' in d),
-                'tc_dat':     sum(d['tc_dat']     for k, d in hk_dict.items() if isinstance(d, dict) and 'tc_dat' in d),
-            }
+                
+                # Tính điểm tích lũy tính đến học kỳ này
+                hk_obj = kqs[0].hoc_ky if kqs else None
+                if hk_obj and sv:
+                    ctl_10, ctl_4, tc_tl_val, _ = tinh_dtbctl(sv, hk_obj)
+                else:
+                    ctl_10 = ctl_4 = 0.0
+                    tc_tl_val = 0
+                
+                data['dtbctl_10'] = ctl_10
+                data['dtbctl_4']  = ctl_4
+                data['tc_tl']     = tc_tl_val
+            
 
-        # Tổng kết toàn khóa = TB cộng tất cả HK
-        toan_khoa = {
-            'dtb_10': round(sum(all_dtb_10) / len(all_dtb_10), 2) if all_dtb_10 else 0.0,
-            'dtb_4':  round(sum(all_dtb_4)  / len(all_dtb_4),  2) if all_dtb_4  else 0.0,
-        }
-        # TC tích lũy (dùng tinh_dtbctl)
+        # Tổng kết toàn khóa (sử dụng tinh_dtbctl để lấy điểm tích lũy chính xác)
         if sv:
-            from results.utils import tinh_dtbctl
-            _, _, tc_tl, _ = tinh_dtbctl(sv)
-            toan_khoa['tc_tl'] = tc_tl
+            dtbctl_10, dtbctl_4, tc_tl, _ = tinh_dtbctl(sv)
+            toan_khoa = {
+                'dtb_10': dtbctl_10,
+                'dtb_4':  dtbctl_4,
+                'tc_tl':  tc_tl,
+            }
+        else:
+            toan_khoa = {
+                'dtb_10': 0.0,
+                'dtb_4':  0.0,
+                'tc_tl':  0,
+            }
 
         return render(request, 'results/ketqua_list.html', {
             'theo_nam_sv': theo_nam,

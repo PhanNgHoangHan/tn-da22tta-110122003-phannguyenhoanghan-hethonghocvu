@@ -3,7 +3,6 @@
 {% block page_title %}Kết quả học tập{% endblock %}
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
-<a href="{% url 'results:ketqua_create' %}" class="btn btn-primary btn-sm">Nhập điểm</a>
 <a href="{% url 'results:import_diem' %}" class="btn btn-secondary btn-sm">Import</a>
 {% endif %}
 <a href="{% url 'results:export_diem' %}" class="btn btn-secondary btn-sm">Export</a>
@@ -75,32 +74,10 @@
 <!-- Từng năm học (giảm dần) -->
 {% for nam_hoc, hk_dict in theo_nam_sv.items %}
 <div class="card mb-4">
-    <!-- Header năm + tổng kết năm -->
+    <!-- Header năm -->
     <div
-        style="background:#1e293b;border-radius:12px 12px 0 0;padding:11px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-        <span style="color:white;font-weight:700;font-size:14px">Năm học {{ nam_hoc }}</span>
-        {% if hk_dict.tong_ket %}
-        {% if not hoc_ky_filter %}
-        <div style="display:flex;gap:14px;font-size:12px;flex-wrap:wrap">
-            <span style="color:#94a3b8">TC đăng ký: <strong style="color:white">{{ hk_dict.tong_ket.tc_dang_ky
-                    }}</strong></span>
-            <span style="color:#94a3b8">TC đạt: <strong style="color:#86efac">{{ hk_dict.tong_ket.tc_dat
-                    }}</strong></span>
-            <span style="color:#94a3b8">Điểm năm hệ 10:
-                <strong
-                    style="color:{% if hk_dict.tong_ket.dtb_10 >= 7.0 %}#86efac{% elif hk_dict.tong_ket.dtb_10 >= 5.0 %}#fde68a{% else %}#fca5a5{% endif %}">
-                    {{ hk_dict.tong_ket.dtb_10 }}
-                </strong>
-            </span>
-            <span style="color:#94a3b8">Hệ 4:
-                <strong
-                    style="color:{% if hk_dict.tong_ket.dtb_4 >= 3.0 %}#86efac{% elif hk_dict.tong_ket.dtb_4 >= 2.0 %}#fde68a{% else %}#fca5a5{% endif %}">
-                    {{ hk_dict.tong_ket.dtb_4 }}
-                </strong>
-            </span>
-        </div>
-        {% endif %}
-        {% endif %}
+        style="background:#0f172a;border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #1e293b">
+        <span style="color:white;font-weight:700;font-size:14.5px">Năm học {{ nam_hoc }}</span>
     </div>
 
     <!-- Từng học kỳ -->
@@ -109,23 +86,21 @@
     <div style="border-bottom:1px solid #f1f5f9">
         <!-- Header HK + ĐTBCHK -->
         <div
-            style="padding:9px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
-            <span style="font-weight:600;color:#374151;font-size:13px">{{ hk_ten }}</span>
-            <div style="display:flex;gap:12px;font-size:12px;color:#64748b;flex-wrap:wrap">
-                <span>TC đăng ký: <strong style="color:#1e293b">{{ data.tc_dang_ky }}</strong></span>
-                <span>TC đạt: <strong style="color:#16a34a">{{ data.tc_dat }}</strong></span>
-                <span>ĐTBCHK hệ 10:
-                    <strong
-                        style="color:{% if data.dtbchk_10 >= 7.0 %}#16a34a{% elif data.dtbchk_10 >= 5.0 %}#d97706{% else %}#dc2626{% endif %}">
-                        {{ data.dtbchk_10 }}
-                    </strong>
-                </span>
-                <span>Hệ 4:
-                    <strong
-                        style="color:{% if data.dtbchk_4 >= 3.0 %}#16a34a{% elif data.dtbchk_4 >= 2.0 %}#d97706{% elif data.dtbchk_4 >= 1.0 %}#ea580c{% else %}#dc2626{% endif %}">
-                        {{ data.dtbchk_4 }}
-                    </strong>
-                </span>
+            style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0">
+            <span style="font-weight:600;color:#1e293b;font-size:13.5px">{{ hk_ten }}</span>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">
+                <!-- Semester Stats Pill -->
+                <div style="background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Học kỳ:</span>
+                    <span style="border-right:1px solid #bae6fd;padding-right:8px">ĐK: <strong>{{ data.tc_dang_ky }}</strong> / Đạt: <strong>{{ data.tc_dat }}</strong></span>
+                    <span>GPA 10: <strong style="color:#0284c7">{{ data.dtbchk_10 }}</strong> | GPA 4: <strong style="color:#0284c7">{{ data.dtbchk_4 }}</strong></span>
+                </div>
+                <!-- Cumulative Stats Pill -->
+                <div style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Tích lũy:</span>
+                    <span style="border-right:1px solid #bbf7d0;padding-right:8px">TC: <strong>{{ data.tc_tl }}</strong></span>
+                    <span>ĐTB 10: <strong style="color:#16a34a">{{ data.dtbctl_10 }}</strong> | ĐTB 4: <strong style="color:#16a34a">{{ data.dtbctl_4 }}</strong></span>
+                </div>
             </div>
         </div>
         <!-- Bảng điểm từng môn -->
@@ -331,7 +306,9 @@
     <div class="card-body" style="text-align:center;padding:48px;color:#94a3b8">
         <div style="font-size:48px;margin-bottom:12px"></div>
         <p>Chưa có kết quả học tập nào.</p>
-        <a href="{% url 'results:ketqua_create' %}" class="btn btn-primary">Nhập điểm đầu tiên</a>
+        {% if request.user.is_giaovu or request.user.is_admin %}
+        <a href="{% url 'results:import_diem' %}" class="btn btn-primary">Import điểm đầu tiên</a>
+        {% endif %}
     </div>
 </div>
 {% endif %}
