@@ -9,7 +9,7 @@
 {% if request.user.is_giaovu or request.user.is_admin %}
 <form action="{% url 'dashboard:gui_bao_cao_covan' %}?nam_hoc={{ nam_hoc_filter }}&ky={{ ky_filter }}" method="post" style="display:inline-block; margin:0">
     {% csrf_token %}
-    <button type="submit" class="btn btn-primary btn-sm" onclick="return confirm('Bạn có chắc chắn muốn gửi báo cáo Excel tương ứng với bộ lọc hiện tại đến tất cả Cố vấn học tập của các lớp?')">
+    <button type="submit" class="btn btn-primary btn-sm" onclick="event.preventDefault(); const form = this.closest('form'); showConfirmModal('Bạn có chắc chắn muốn gửi báo cáo Excel tương ứng với bộ lọc hiện tại đến tất cả Cố vấn học tập của các lớp?', () => form.submit())">
         Gửi báo cáo cho Cố vấn
     </button>
 </form>

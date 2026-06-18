@@ -56,9 +56,13 @@
         <a href="{% url 'results:ketqua_list' %}" class="{% if request.resolver_match.namespace == 'results' %}active{% endif %}">
             Kết quả học tập
         </a>
-        <a href="{% url 'academic_warnings:canhbao_list' %}" class="{% if request.resolver_match.namespace == 'academic_warnings' %}active{% endif %}">
+        <a href="{% url 'academic_warnings:canhbao_list' %}" class="{% if request.resolver_match.namespace == 'academic_warnings' and request.resolver_match.url_name == 'canhbao_list' %}active{% endif %}">
             Cảnh báo học vụ
         </a>
+        <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="{% if request.resolver_match.namespace == 'academic_warnings' and 'canhbao_som' in request.resolver_match.url_name %}active{% endif %}">
+            Cảnh báo sớm học vụ
+        </a>
+
 
         {% if not user.is_sinhvien %}
         <div class="nav-section-title">Báo cáo</div>
@@ -162,6 +166,80 @@ alerts.forEach(alert => {
             alert.remove();
         }, 500);
     }, 5000);
+});
+</script>
+
+<!-- Custom Confirm Modal -->
+<div id="custom-confirm-modal" class="custom-modal-overlay">
+    <div class="custom-modal-card">
+        <div class="custom-modal-header">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="var(--accent)" viewBox="0 0 16 16" style="flex-shrink:0;">
+                <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/>
+            </svg>
+            <span>Thông báo</span>
+        </div>
+        <div class="custom-modal-body" id="confirm-modal-message">
+            Bạn có chắc chắn muốn thực hiện hành động này?
+        </div>
+        <div class="custom-modal-footer">
+            <button type="button" class="custom-modal-btn custom-modal-btn-cancel" id="confirm-modal-cancel">Hủy</button>
+            <button type="button" class="custom-modal-btn custom-modal-btn-ok" id="confirm-modal-ok">OK</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Custom confirmation modal implementation
+let currentConfirmCallback = null;
+
+function showConfirmModal(message, onConfirm) {
+    const modal = document.getElementById('custom-confirm-modal');
+    const messageEl = document.getElementById('confirm-modal-message');
+    if (!modal || !messageEl) return;
+    
+    messageEl.textContent = message;
+    currentConfirmCallback = onConfirm;
+    
+    modal.style.display = 'flex';
+    modal.offsetHeight; // force reflow
+    modal.classList.add('show');
+}
+
+function closeConfirmModal() {
+    const modal = document.getElementById('custom-confirm-modal');
+    if (!modal) return;
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.style.display = 'none';
+    }, 200);
+    currentConfirmCallback = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const cancelBtn = document.getElementById('confirm-modal-cancel');
+    const okBtn = document.getElementById('confirm-modal-ok');
+    const modal = document.getElementById('custom-confirm-modal');
+    
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closeConfirmModal);
+    }
+    
+    if (okBtn) {
+        okBtn.addEventListener('click', () => {
+            if (currentConfirmCallback) {
+                currentConfirmCallback();
+            }
+            closeConfirmModal();
+        });
+    }
+    
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeConfirmModal();
+            }
+        });
+    }
 });
 </script>
 {% block extra_js %}{% endblock %}

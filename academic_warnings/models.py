@@ -58,3 +58,20 @@ class LichSuGuiEmailBaoCao(models.Model):
     def __str__(self):
         return f"Báo cáo {self.lop} - {self.hoc_ky} - Gửi ngày {self.ngay_gui.date()}"
 
+
+class LichSuGuiCanhBaoSom(models.Model):
+    sinh_vien = models.ForeignKey(SinhVien, on_delete=models.CASCADE, related_name='lich_su_gui_canh_bao_som', verbose_name='Sinh viên')
+    hoc_ky = models.ForeignKey(HocKy, on_delete=models.CASCADE, related_name='lich_su_gui_canh_bao_som', verbose_name='Học kỳ')
+    ngay_gui = models.DateTimeField(auto_now_add=True, verbose_name='Ngày gửi')
+    muc_nguy_co = models.CharField(max_length=50, verbose_name='Mức nguy cơ')
+    gpa_he4 = models.FloatField(verbose_name='GPA tích lũy hệ 4')
+
+    class Meta:
+        verbose_name = 'Lịch sử gửi cảnh báo sớm'
+        verbose_name_plural = 'Lịch sử gửi cảnh báo sớm'
+        ordering = ['-ngay_gui']
+
+    def __str__(self):
+        return f"Cảnh báo sớm {self.sinh_vien.mssv} - Mức {self.muc_nguy_co} - Gửi ngày {self.ngay_gui.date()}"
+
+

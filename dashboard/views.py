@@ -8,7 +8,7 @@ import json
 from students.models import SinhVien, HocKy, MonHoc, Nganh
 from results.models import KetQuaHocTap
 from results.utils import (tinh_dtbctl, tinh_dtbchk,
-                            thong_ke_hocky, get_phan_phoi_diem)
+                            thong_ke_hocky, get_phan_phoi_diem, tinh_canh_bao_som)
 from academic_warnings.models import CanhBaoHocVu
 
 
@@ -79,6 +79,7 @@ def dashboard_sinhvien(request):
         'hoc_ky_hien_tai': hoc_ky_hien_tai,
         'thong_ke': thong_ke,
         'canh_baos': canh_baos,
+        'canh_bao_som': tinh_canh_bao_som(sv),
         'ket_qua_gan': ket_qua_gan,
         'gpa_labels': json.dumps(gpa_labels),
         'gpa_data': json.dumps(gpa_data),
@@ -130,6 +131,41 @@ def dashboard_covan(request):
                 sv_gpa_thap.append({'sv': sv, 'gpa': dtbchk_4, 'tc': tc})
         sv_gpa_thap.sort(key=lambda x: x['gpa'])
 
+    # Phân tích cảnh báo sớm cho các sinh viên lớp cố vấn phụ trách
+    student_list = list(svs)
+    student_ids = [sv.id for sv in student_list]
+
+    # Query 1: Fetch all KetQuaHocTap with select_related for all students in student_ids
+    results_list = list(
+        KetQuaHocTap.objects.filter(sinh_vien_id__in=student_ids, diem_tk__isnull=False)
+        .select_related('mon_hoc', 'hoc_ky')
+        .order_by('hoc_ky__nam_hoc', 'hoc_ky__ky')
+    )
+    prefetch_results = {}
+    for r in results_list:
+        if r.sinh_vien_id not in prefetch_results:
+            prefetch_results[r.sinh_vien_id] = []
+        prefetch_results[r.sinh_vien_id].append(r)
+
+    # Query 2: Fetch all CanhBaoHocVu for these students
+    warnings_list = list(CanhBaoHocVu.objects.filter(sinh_vien_id__in=student_ids))
+    prefetch_warnings = {}
+    for cb in warnings_list:
+        prefetch_warnings[(cb.sinh_vien_id, cb.hoc_ky_id)] = cb
+
+    cbs_stats = {'safe': 0, 'monitor': 0, 'warning_1': 0, 'warning_2': 0}
+    sv_risk_list = []
+    for sv in student_list:
+        analysis = tinh_canh_bao_som(sv, prefetch_results=prefetch_results, prefetch_warnings=prefetch_warnings)
+        lvl = analysis['muc_nguy_co']
+        if lvl in cbs_stats:
+            cbs_stats[lvl] += 1
+        if lvl in ['warning_1', 'warning_2', 'monitor']:
+            sv_risk_list.append(analysis)
+            
+    level_order = {'warning_2': 0, 'warning_1': 1, 'monitor': 2, 'safe': 3}
+    sv_risk_list.sort(key=lambda x: level_order.get(x['muc_nguy_co'], 4))
+
     # Phân bố trạng thái sinh viên
     trang_thai_stats = svs.values('trang_thai').annotate(count=Count('id'))
 
@@ -139,6 +175,8 @@ def dashboard_covan(request):
         'sv_dang_hoc': sv_dang_hoc,
         'canh_baos_moi': canh_baos_moi,
         'sv_gpa_thap': sv_gpa_thap[:10],
+        'sv_risk_list': sv_risk_list[:10],
+        'cbs_stats': cbs_stats,
         'hockys': hockys,
         'selected_hk': selected_hk,
         'cb_labels': json.dumps([d['muc_canh_bao'] for d in cb_stats]),

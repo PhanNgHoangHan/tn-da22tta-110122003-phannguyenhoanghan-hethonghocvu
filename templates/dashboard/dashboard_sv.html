@@ -6,7 +6,7 @@
 {% if canh_baos %}
 {% with cb=canh_baos.0 %}
 <div class="warning-banner {% if cb.muc_canh_bao == 'muc3' %}danger{% elif cb.muc_canh_bao == 'muc2' %}danger{% endif %} mb-4">
-    <div class="warn-icon"></div>
+    <div class="warn-icon">🚨</div>
     <div class="warn-text">
         <div class="warn-title">{{ cb.get_muc_canh_bao_display }} - Học kỳ {{ cb.hoc_ky }}</div>
         <div class="warn-desc">{{ cb.ly_do }} — <a href="{% url 'academic_warnings:canhbao_list' %}" style="color:inherit;text-decoration:underline">Xem chi tiết</a></div>
@@ -14,6 +14,24 @@
 </div>
 {% endwith %}
 {% endif %}
+
+<!-- TẦNG 4: CẢNH BÁO SỚM HỌC VỤ ĐẦU RA HIỂN THỊ CHO SINH VIÊN -->
+<div class="warning-banner {% if canh_bao_som.mau_nguy_co == 'danger' %}danger{% elif canh_bao_som.mau_nguy_co == 'warning' %}warning{% else %}info{% endif %} mb-4" 
+     style="{% if canh_bao_som.muc_nguy_co == 'safe' %}background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: var(--success); border-left-width: 5px;{% endif %}">
+    <div class="warn-icon" style="font-size: 22px;">
+        {% if canh_bao_som.mau_nguy_co == 'danger' %}🚨{% elif canh_bao_som.mau_nguy_co == 'warning' %}⚠{% elif canh_bao_som.muc_nguy_co == 'safe' %}✓{% else %}💡{% endif %}
+    </div>
+    <div class="warn-text">
+        <div class="warn-title" style="font-weight: 700; font-size:14.5px; {% if canh_bao_som.muc_nguy_co == 'safe' %}color: #15803d;{% endif %}">
+            Cảnh báo sớm học vụ: <span class="badge badge-{{ canh_bao_som.mau_nguy_co }}">{{ canh_bao_som.muc_nguy_co_display }}</span>
+        </div>
+        <div class="warn-desc" style="margin-top: 4px; font-size: 13px; {% if canh_bao_som.muc_nguy_co == 'safe' %}color: #166534;{% endif %}">
+            {{ canh_bao_som.ly_do }} &mdash; 
+            <a href="{% url 'academic_warnings:canhbao_som_detail' sv.mssv %}" style="font-weight: 600; text-decoration: underline; color: inherit;">Xem phân tích chi tiết & gợi ý giải pháp</a>
+        </div>
+    </div>
+</div>
+
 
 <div class="grid-2 mb-4">
     <!-- Biểu đồ ĐTBCHK theo học kỳ -->

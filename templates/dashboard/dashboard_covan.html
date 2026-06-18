@@ -3,59 +3,123 @@
 {% block page_title %}Dashboard Cố vấn học tập{% endblock %}
 {% block content %}
 
-<div class="grid-2 mb-4">
-    <!-- Cảnh báo mới -->
+<!-- Tầng 5: Báo cáo CVHT - Thống kê Cảnh báo sớm của lớp quản lý -->
+<div class="grid-4 mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
+    <!-- Tổng số -->
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--primary);">
+        <div class="stat-icon blue">SV</div>
+        <div class="stat-info">
+            <div class="stat-value">{{ total_sv }}</div>
+            <div class="stat-label">Tổng sinh viên phụ trách</div>
+        </div>
+    </a>
+    
+    <!-- An toàn -->
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=safe" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--success);">
+        <div class="stat-icon green">✓</div>
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--success);">{{ cbs_stats.safe }}</div>
+            <div class="stat-label">Học tập An toàn</div>
+        </div>
+    </a>
+
+    <!-- Theo dõi -->
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=monitor" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--info);">
+        <div class="stat-icon teal">ℹ</div>
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--info);">{{ cbs_stats.monitor }}</div>
+            <div class="stat-label">Đang Theo dõi</div>
+        </div>
+    </a>
+
+    <!-- Cảnh báo mức 1 & 2 -->
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=warning_1" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--warning);">
+        <div class="stat-icon yellow">⚠</div>
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--warning);">{{ cbs_stats.warning_1 }}</div>
+            <div class="stat-label">Cảnh báo sớm mức 1</div>
+        </div>
+    </a>
+
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=warning_2" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--danger);">
+        <div class="stat-icon red">🚨</div>
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--danger);">{{ cbs_stats.warning_2 }}</div>
+            <div class="stat-label">Cảnh báo sớm mức 2</div>
+        </div>
+    </a>
+</div>
+
+<div class="grid-2 mb-4" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Cảnh báo học vụ chính thức mới (chưa xử lý) -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Cảnh báo học vụ mới</span>
-            <a href="{% url 'academic_warnings:canhbao_list' %}?trang_thai=chua_xu_ly" class="btn btn-sm btn-secondary">Xem tất cả</a>
+            <span class="card-title">Cảnh báo học vụ chính thức mới</span>
+            <a href="{% url 'academic_warnings:canhbao_list' %}?trang_thai=chua_xu_ly" class="btn btn-sm btn-secondary" style="font-size:12px; padding:3px 8px;">Xem tất cả</a>
         </div>
         <div class="card-body" style="padding:0">
             <table class="data-table">
-                <thead><tr><th>MSSV</th><th>Họ tên</th><th>Mức</th><th>HK</th><th></th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>MSSV</th>
+                        <th>Họ tên</th>
+                        <th>Mức</th>
+                        <th>Lần thứ</th>
+                        <th>Học kỳ</th>
+                        <th style="width: 80px;">Chi tiết</th>
+                    </tr>
+                </thead>
                 <tbody>
-                {% for cb in canh_baos_moi %}
-                <tr>
-                    <td>{{ cb.sinh_vien.mssv }}</td>
-                    <td>{{ cb.sinh_vien.ho_ten }}</td>
-                    <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
-                    <td>{{ cb.hoc_ky }}</td>
-                    <td><a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}" class="btn btn-sm btn-secondary">Xem</a></td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:20px">Không có cảnh báo mới</td></tr>
-                {% endfor %}
+                    {% for cb in canh_baos_moi|slice:":5" %}
+                    <tr>
+                        <td>{{ cb.sinh_vien.mssv }}</td>
+                        <td>{{ cb.sinh_vien.ho_ten }}</td>
+                        <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
+                        <td style="text-align: center;"><strong>{{ cb.so_lan_canh_bao }}</strong></td>
+                        <td style="font-size: 11px;">Học kỳ {{ cb.hoc_ky.ky }}<br><span class="text-muted">{{ cb.hoc_ky.nam_hoc }}</span></td>
+                        <td><a href="{% url 'academic_warnings:canhbao_detail' cb.pk %}" class="btn btn-sm btn-secondary" style="padding:2px 8px; font-size:11px;">Xem</a></td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:24px">Không có cảnh báo chính thức mới</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
 
-    <!-- Sinh viên GPA thấp -->
+    <!-- Tầng 5: Báo cáo danh sách SV nguy cơ học vụ cao (Cảnh báo sớm) -->
     <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-            <span class="card-title">Sinh viên GPA thấp (&lt; 2.0)</span>
-            <form method="get" id="hkForm" class="d-flex align-items-center">
-                <select name="hoc_ky" class="form-select form-select-sm" style="max-width:180px;font-size:12px;padding:4px 8px" onchange="this.form.submit()">
-                    {% for hk in hockys %}
-                    <option value="{{ hk.pk }}" {% if selected_hk.pk == hk.pk %}selected{% endif %}>{{ hk }}</option>
-                    {% endfor %}
-                </select>
-            </form>
+        <div class="card-header">
+            <span class="card-title">Sinh viên có nguy cơ học vụ cần hỗ trợ</span>
+            <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-sm btn-secondary" style="font-size:12px; padding:3px 8px;">Xem tất cả phân tích</a>
         </div>
         <div class="card-body" style="padding:0">
             <table class="data-table">
-                <thead><tr><th>MSSV</th><th>Họ tên</th><th>GPA HK</th><th>TC</th></tr></thead>
+                <thead>
+                    <tr>
+                        <th>MSSV</th>
+                        <th>Họ tên</th>
+                        <th>ĐTB Tích lũy (Hệ 4)</th>
+                        <th style="text-align: center;">Mức nguy cơ</th>
+                        <th style="text-align: center; width: 100px;">Hành động</th>
+                    </tr>
+                </thead>
                 <tbody>
-                {% for item in sv_gpa_thap %}
-                <tr>
-                    <td><a href="{% url 'students:sinhvien_detail' item.sv.pk %}">{{ item.sv.mssv }}</a></td>
-                    <td>{{ item.sv.ho_ten }}</td>
-                    <td><strong style="color:{% if item.gpa < 1.0 %}#dc2626{% elif item.gpa < 1.5 %}#d97706{% else %}#374151{% endif %}">{{ item.gpa }}</strong></td>
-                    <td>{{ item.tc }}</td>
-                </tr>
-                {% empty %}
-                <tr><td colspan="4" style="text-align:center;color:#94a3b8;padding:20px">Không có sinh viên GPA thấp</td></tr>
-                {% endfor %}
+                    {% for item in sv_risk_list|slice:":5" %}
+                    <tr>
+                        <td>{{ item.sinh_vien.mssv }}</td>
+                        <td>{{ item.sinh_vien.ho_ten }}</td>
+                        <td><strong class="text-primary">{{ item.gpa_tl_4|floatformat:2 }}</strong> <span class="text-muted" style="font-size:10px">({{ item.gpa_tl_10|floatformat:2 }})</span></td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-{{ item.mau_nguy_co }}">{{ item.muc_nguy_co_display }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'academic_warnings:canhbao_som_detail' item.sinh_vien.mssv %}" class="btn btn-sm btn-primary" style="padding:2px 8px; font-size:11px;">Phân tích</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" style="text-align:center;color:#94a3b8;padding:24px">🎉 Tất cả sinh viên trong lớp đều ở mức độ An toàn!</td></tr>
+                    {% endfor %}
                 </tbody>
             </table>
         </div>

@@ -526,3 +526,320 @@ def dong_bo_canh_bao_sinh_vien(sinh_vien):
     else:
         sinh_vien.trang_thai = 'dang_hoc'
     sinh_vien.save()
+
+
+def tinh_dtbchk_in_memory(student_results, hoc_ky):
+    """Tính ĐTBCHK hệ 10 và hệ 4 hoàn toàn in-memory từ danh sách kết quả học tập đã được prefetch."""
+    tong_tc_gpa = 0
+    tong_diem_10 = 0.0
+    tong_diem_4 = 0.0
+    tong_tc_hk = 0
+    tc_dat = 0
+    
+    # Lọc các kết quả trong học kỳ này, có điểm và lần học = 1
+    hk_results = [
+        r for r in student_results 
+        if r.hoc_ky_id == hoc_ky.id and r.diem_tk is not None and r.lan_hoc == 1
+    ]
+    
+    for r in hk_results:
+        tc = r.mon_hoc.so_tc
+        tong_tc_hk += tc
+        if la_dat(r.diem_tk):
+            tc_dat += tc
+            
+        if la_gdtc(r.mon_hoc.ma_mh):
+            continue
+            
+        tong_tc_gpa += tc
+        tong_diem_10 += r.diem_tk * tc
+        tong_diem_4  += (diem_he4(r.diem_tk) or 0) * tc
+
+    if tong_tc_gpa == 0:
+        return 0.0, 0.0, tong_tc_hk, tc_dat
+    return (round(tong_diem_10 / tong_tc_gpa, 2),
+            round(tong_diem_4  / tong_tc_gpa, 2),
+            tong_tc_hk, tc_dat)
+
+
+def tinh_dtbctl_in_memory(student_results, hoc_ky=None):
+    """Tính ĐTBCTL hệ 10 và hệ 4 hoàn toàn in-memory từ danh sách kết quả học tập đã được prefetch."""
+    # Lọc các môn học có điểm từ trước đến học kỳ chỉ định
+    qs = [r for r in student_results if r.diem_tk is not None]
+    if hoc_ky:
+        qs = [
+            r for r in qs
+            if r.hoc_ky.nam_hoc < hoc_ky.nam_hoc or (r.hoc_ky.nam_hoc == hoc_ky.nam_hoc and r.hoc_ky.ky <= hoc_ky.ky)
+        ]
+
+    # Tìm điểm tốt nhất của mỗi môn học
+    best_results = {}
+    for r in qs:
+        m_id = r.mon_hoc_id
+        if m_id not in best_results or r.diem_tk > best_results[m_id].diem_tk:
+            best_results[m_id] = r
+            
+    tong_tc_gpa = 0
+    tong_diem_10 = 0.0
+    tong_diem_4  = 0.0
+    tc_tich_luy  = 0
+    tong_tc_da_hoc = 0
+
+    for best in best_results.values():
+        tc = best.mon_hoc.so_tc
+        tong_tc_da_hoc += tc
+        if la_dat(best.diem_tk):
+            tc_tich_luy += tc
+            
+        if la_gdtc(best.mon_hoc.ma_mh):
+            continue
+            
+        tong_tc_gpa += tc
+        tong_diem_10 += best.diem_tk * tc
+        tong_diem_4  += (diem_he4(best.diem_tk) or 0) * tc
+
+    dtbctl_10 = round(tong_diem_10 / tong_tc_gpa, 2) if tong_tc_gpa > 0 else 0.0
+    dtbctl_4  = round(tong_diem_4  / tong_tc_gpa, 2) if tong_tc_gpa > 0 else 0.0
+    return dtbctl_10, dtbctl_4, tc_tich_luy, tong_tc_da_hoc
+
+
+def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_warnings=None):
+    """
+    Phân tích cảnh báo sớm học vụ theo 5 tầng quyết định.
+    Hỗ trợ tham số prefetch_results và prefetch_warnings để chạy O(1) in-memory mà không truy vấn database.
+    """
+    from students.models import HocKy
+    from results.models import KetQuaHocTap
+    from academic_warnings.models import CanhBaoHocVu
+    from django.db.models import Q
+
+    # Tầng 1: Thu thập dữ liệu học kỳ
+    if prefetch_results is not None:
+        student_results = prefetch_results.get(sinh_vien.id, [])
+        # Trích xuất các học kỳ từ kết quả học tập của sinh viên
+        hk_dict = {}
+        for r in student_results:
+            if r.hoc_ky_id not in hk_dict:
+                hk_dict[r.hoc_ky_id] = r.hoc_ky
+        
+        hks_list = list(hk_dict.values())
+        if hoc_ky:
+            hks_list = [
+                hk for hk in hks_list
+                if hk.nam_hoc < hoc_ky.nam_hoc or (hk.nam_hoc == hoc_ky.nam_hoc and hk.ky <= hoc_ky.ky)
+            ]
+        hockys = sorted(hks_list, key=lambda hk: (hk.nam_hoc, hk.ky))
+    else:
+        student_results = None
+        hockys_query = HocKy.objects.filter(ket_qua__sinh_vien=sinh_vien).distinct()
+        if hoc_ky:
+            hockys_query = hockys_query.filter(
+                Q(nam_hoc__lt=hoc_ky.nam_hoc) |
+                Q(nam_hoc=hoc_ky.nam_hoc, ky__lte=hoc_ky.ky)
+            )
+        hockys = list(hockys_query.order_by('nam_hoc', 'ky'))
+
+    default_res = {
+        'sinh_vien': sinh_vien,
+        'hoc_ky': hoc_ky,
+        'muc_nguy_co': 'safe',
+        'muc_nguy_co_display': 'An toàn',
+        'mau_nguy_co': 'success',
+        'gpa_hk_10': 0.0,
+        'gpa_hk_4': 0.0,
+        'gpa_tl_10': 0.0,
+        'gpa_tl_4': 0.0,
+        'tc_hk_reg': 0,
+        'tc_hk_pass': 0,
+        'tc_tl_reg': 0,
+        'tc_tl_pass': 0,
+        'ly_do': 'Chưa có kết quả học tập ghi nhận.',
+        'xu_huong': 'stable',
+        'xu_huong_display': 'Chưa có xu hướng',
+        'diem_yeu': [],
+        'goi_y': []
+    }
+
+    if not hockys:
+        return default_res
+
+    # Chọn học kỳ phân tích là học kỳ chỉ định hoặc học kỳ gần nhất
+    target_hk = hoc_ky if hoc_ky else hockys[-1]
+    
+    # Tính toán GPA học kỳ & tích lũy
+    if prefetch_results is not None:
+        gpa_hk_10, gpa_hk_4, tc_hk_reg, tc_hk_pass = tinh_dtbchk_in_memory(student_results, target_hk)
+        gpa_tl_10, gpa_tl_4, tc_tl_pass, tc_tl_reg = tinh_dtbctl_in_memory(student_results, target_hk)
+    else:
+        gpa_hk_10, gpa_hk_4, tc_hk_reg, tc_hk_pass = tinh_dtbchk(sinh_vien, target_hk)
+        gpa_tl_10, gpa_tl_4, tc_tl_pass, tc_tl_reg = tinh_dtbctl(sinh_vien, target_hk)
+
+    # Tầng 2 & 3: Phân loại mức nguy cơ dựa trên GPA tích lũy
+    muc_nguy_co = 'safe'
+    muc_nguy_co_display = 'An toàn'
+    mau_nguy_co = 'success'
+    ly_do = f'Kết quả học tập tốt, ĐTBCTL đạt {gpa_tl_4:.2f} (Hệ 4).'
+
+    if gpa_tl_4 < 1.2:
+        muc_nguy_co = 'warning_2'
+        muc_nguy_co_display = 'Cảnh báo mức 2 (Nguy hiểm)'
+        mau_nguy_co = 'danger'
+        ly_do = f'ĐTBCTL quá thấp ({gpa_tl_4:.2f} < 1.20). Có nguy cơ cao bị buộc thôi học.'
+    elif gpa_tl_4 < 1.8:
+        muc_nguy_co = 'warning_1'
+        muc_nguy_co_display = 'Cảnh báo mức 1'
+        mau_nguy_co = 'warning'
+        ly_do = f'ĐTBCTL thấp ({gpa_tl_4:.2f} < 1.80). Cần cải thiện học tập ngay.'
+    elif gpa_tl_4 < 2.0:
+        muc_nguy_co = 'monitor'
+        muc_nguy_co_display = 'Theo dõi'
+        mau_nguy_co = 'info'
+        ly_do = f'ĐTBCTL ở mức trung bình yếu ({gpa_tl_4:.2f} < 2.00). Cần theo sát tiến độ để tránh bị cảnh báo học vụ.'
+
+    # Kiểm tra xem có cảnh báo học vụ chính thức nào trong học kỳ này không
+    if prefetch_warnings is not None:
+        cb_chinh_thuc = prefetch_warnings.get((sinh_vien.id, target_hk.id))
+    else:
+        cb_chinh_thuc = CanhBaoHocVu.objects.filter(sinh_vien=sinh_vien, hoc_ky=target_hk).first()
+
+    if cb_chinh_thuc:
+        if cb_chinh_thuc.muc_canh_bao == 'buoc_thoi_hoc':
+            muc_nguy_co = 'warning_2'
+            muc_nguy_co_display = 'Cảnh báo mức 2 (Buộc thôi học)'
+            mau_nguy_co = 'danger'
+            ly_do = f'Đã có quyết định Buộc thôi học chính thức ở học kỳ {target_hk}.'
+        else:
+            # Bị cảnh báo học vụ chính thức
+            if cb_chinh_thuc.so_lan_canh_bao >= 2:
+                muc_nguy_co = 'warning_2'
+                muc_nguy_co_display = 'Cảnh báo mức 2 (Nguy cơ thôi học)'
+                mau_nguy_co = 'danger'
+                ly_do = f'Đã bị cảnh báo học vụ chính thức lần thứ {cb_chinh_thuc.so_lan_canh_bao}. Lần tiếp theo sẽ bị Buộc thôi học.'
+            elif muc_nguy_co in ['safe', 'monitor']:
+                # Nâng cấp lên mức 1 nếu bị cảnh báo chính thức
+                muc_nguy_co = 'warning_1'
+                muc_nguy_co_display = 'Cảnh báo mức 1'
+                mau_nguy_co = 'warning'
+                ly_do = f'Bị cảnh báo học vụ chính thức lần 1 ở học kỳ {target_hk}.'
+
+    # Dự báo xu hướng (so sánh với học kỳ liền trước)
+    target_idx = hockys.index(target_hk)
+    xu_huong = 'stable'
+    xu_huong_display = 'Chưa có xu hướng'
+    
+    if target_idx > 0:
+        prev_hk = hockys[target_idx - 1]
+        if prefetch_results is not None:
+            _, prev_gpa_tl_4, _, _ = tinh_dtbctl_in_memory(student_results, prev_hk)
+        else:
+            _, prev_gpa_tl_4, _, _ = tinh_dtbctl(sinh_vien, prev_hk)
+        diff = gpa_tl_4 - prev_gpa_tl_4
+        if diff > 0.1:
+            xu_huong = 'up'
+            xu_huong_display = 'Xu hướng cải thiện tốt 📈'
+        elif diff < -0.1:
+            xu_huong = 'down'
+            xu_huong_display = 'Xu hướng sa sút 📉'
+        else:
+            xu_huong = 'stable'
+            xu_huong_display = 'Xu hướng ổn định ➡️'
+
+    # Tầng 4: Phân tích điểm yếu & môn ảnh hưởng GPA
+    # Lấy điểm tốt nhất của từng môn từ đầu khóa đến học kỳ target_hk
+    if prefetch_results is not None:
+        results = [
+            r for r in student_results
+            if r.diem_tk is not None and (
+                r.hoc_ky.nam_hoc < target_hk.nam_hoc or (r.hoc_ky.nam_hoc == target_hk.nam_hoc and r.hoc_ky.ky <= target_hk.ky)
+            )
+        ]
+    else:
+        qs_results = KetQuaHocTap.objects.filter(sinh_vien=sinh_vien, diem_tk__isnull=False).filter(
+            Q(hoc_ky__nam_hoc__lt=target_hk.nam_hoc) |
+            Q(hoc_ky__nam_hoc=target_hk.nam_hoc, hoc_ky__ky__lte=target_hk.ky)
+        ).select_related('mon_hoc', 'hoc_ky')
+        results = list(qs_results)
+
+    best_results = {}
+    for r in results:
+        m_id = r.mon_hoc_id
+        if m_id not in best_results or r.diem_tk > best_results[m_id].diem_tk:
+            best_results[m_id] = r
+            
+    # Tính tổng số tín chỉ tính GPA để chia tỉ lệ cải thiện
+    tong_tc_gpa = 0
+    for best_kq in best_results.values():
+        if not la_gdtc(best_kq.mon_hoc.ma_mh):
+            tong_tc_gpa += best_kq.mon_hoc.so_tc
+
+    weak_points = []
+    for best_kq in best_results.values():
+        diem_10 = best_kq.diem_tk
+        diem_ch = diem_chu(diem_10)
+        diem_h4 = diem_he4(diem_10)
+        so_tc = best_kq.mon_hoc.so_tc
+        
+        # Môn học bị xếp điểm F, D hoặc D+ được xem là điểm yếu
+        if diem_ch in ['F', 'D', 'D+']:
+            # Tính lượng điểm GPA hệ 4 có thể cải thiện nếu học lại đạt điểm A (4.0)
+            gpa_improvement = 0.0
+            if tong_tc_gpa > 0 and not la_gdtc(best_kq.mon_hoc.ma_mh):
+                gpa_improvement = ((4.0 - diem_h4) * so_tc) / tong_tc_gpa
+            
+            weak_points.append({
+                'ma_mh': best_kq.mon_hoc.ma_mh,
+                'ten_mh': best_kq.mon_hoc.ten_mh,
+                'so_tc': so_tc,
+                'diem_tk': diem_10,
+                'diem_chu': diem_ch,
+                'diem_he4': diem_h4,
+                'improvement': round(gpa_improvement, 3),
+                'hoc_ky': str(best_kq.hoc_ky),
+            })
+                
+    # Sắp xếp điểm yếu: Môn F lên đầu, sau đó sắp xếp theo mức độ cải thiện GPA giảm dần
+    weak_points.sort(key=lambda x: (x['diem_chu'] != 'F', -x['improvement']))
+
+    # Gợi ý giải pháp cụ thể
+    goi_y = []
+    failed_courses = [w for w in weak_points if w['diem_chu'] == 'F']
+    
+    if failed_courses:
+        for f in failed_courses[:2]:
+            goi_y.append(f"Đăng ký học lại môn {f['ten_mh']} ({f['so_tc']} TC, hiện tại điểm F) để xóa nợ môn và tăng ĐTBTL lên khoảng +{f['improvement']:.2f} điểm.")
+            
+    # Gợi ý về khối lượng học tập
+    if len(failed_courses) >= 3 or gpa_hk_4 < 1.5:
+        goi_y.append("Học kỳ tiếp theo nên giảm bớt khối lượng đăng ký học tập xuống mức tối thiểu (khoảng 12 - 14 tín chỉ) để tập trung nâng cao điểm số các môn bắt buộc.")
+    else:
+        goi_y.append("Duy trì đăng ký khối lượng học tập vừa sức (14 - 18 tín chỉ) và phân bổ thời gian học bài đều đặn mỗi tuần.")
+
+    # Gợi ý liên hệ cố vấn học tập
+    if sinh_vien.lop and sinh_vien.lop.covan:
+        goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.lop.covan.full_name} (Email: {sinh_vien.lop.covan.email or 'chưa có'}) để nhận tư vấn xây dựng lại lộ trình học tập cá nhân.")
+    elif sinh_vien.covan:
+        goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.covan.full_name} (Email: {sinh_vien.covan.email or 'chưa có'}) để nhận tư vấn học tập.")
+    else:
+        goi_y.append("Chủ động liên hệ văn phòng Khoa hoặc trung tâm hỗ trợ sinh viên để nhận tư vấn học vụ.")
+
+    return {
+        'sinh_vien': sinh_vien,
+        'hoc_ky': target_hk,
+        'muc_nguy_co': muc_nguy_co,
+        'muc_nguy_co_display': muc_nguy_co_display,
+        'mau_nguy_co': mau_nguy_co,
+        'gpa_hk_10': gpa_hk_10,
+        'gpa_hk_4': gpa_hk_4,
+        'gpa_tl_10': gpa_tl_10,
+        'gpa_tl_4': gpa_tl_4,
+        'tc_hk_reg': tc_hk_reg,
+        'tc_hk_pass': tc_hk_pass,
+        'tc_tl_reg': tc_tl_reg,
+        'tc_tl_pass': tc_tl_pass,
+        'ly_do': ly_do,
+        'xu_huong': xu_huong,
+        'xu_huong_display': xu_huong_display,
+        'diem_yeu': weak_points,
+        'goi_y': goi_y
+    }
+

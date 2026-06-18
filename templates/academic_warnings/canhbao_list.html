@@ -4,7 +4,7 @@
 {% block topbar_actions %}
 {% if request.user.is_giaovu or request.user.is_admin %}
 <form action="{% url 'academic_warnings:canhbao_send_bulk_email' %}?{{ request.GET.urlencode }}" method="post"
-    onsubmit="return confirm('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ đến TẤT CẢ các sinh viên chưa thông báo trong danh sách bộ lọc hiện tại?')"
+    onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ đến TẤT CẢ các sinh viên chưa thông báo trong danh sách bộ lọc hiện tại?', () => form.submit())"
     style="display:inline-block; margin: 0 8px 0 0;">
     {% csrf_token %}
     <button type="submit" class="btn btn-success btn-sm"
@@ -139,7 +139,7 @@
                                 {% if cb.trang_thai == 'da_xu_ly' %}
                                 {% if request.user.is_giaovu or request.user.is_admin or request.user.is_covan %}
                                 <a href="{% url 'academic_warnings:canhbao_hide' cb.pk %}" class="btn btn-sm btn-warning"
-                                    onclick="return confirm('Bạn có chắc chắn muốn ẩn cảnh báo này khỏi danh sách quản lý?')">Ẩn</a>
+                                    onclick="event.preventDefault(); const href = this.href; showConfirmModal('Bạn có chắc chắn muốn ẩn cảnh báo này khỏi danh sách quản lý?', () => { window.location.href = href; })">Ẩn</a>
                                 {% endif %}
                                 {% endif %}
                             </div>
