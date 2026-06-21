@@ -11,7 +11,12 @@ from results.utils import kiem_tra_canh_bao, dem_canh_bao_lien_tiep, xac_dinh_mu
 
 @login_required
 def canhbao_list(request):
+    latest_hk = HocKy.objects.filter(ket_qua__diem_tk__isnull=False).distinct().order_by('-nam_hoc', '-ky').first()
+    if not latest_hk:
+        latest_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
     qs = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky', 'sinh_vien__nganh', 'sinh_vien__lop').exclude(nguoi_dung_an=request.user).order_by('trang_thai', '-ngay_tao')
+    if latest_hk:
+        qs = qs.filter(hoc_ky=latest_hk)
 
     muc       = request.GET.get('muc', '')
     trang_thai = request.GET.get('trang_thai', '')
@@ -97,6 +102,7 @@ def canhbao_list(request):
         'selected_lop': lop_id,
         'selected_khoa_hoc': khoa_hoc,
         'q': q,
+        'latest_hk': latest_hk,
     })
 
 
@@ -222,9 +228,14 @@ def canhbao_gui_thong_bao_hang_loat(request):
         return redirect('academic_warnings:canhbao_list')
 
     # Re-apply the filters from GET/POST parameters
+    latest_hk = HocKy.objects.filter(ket_qua__diem_tk__isnull=False).distinct().order_by('-nam_hoc', '-ky').first()
+    if not latest_hk:
+        latest_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
     qs = CanhBaoHocVu.objects.select_related('sinh_vien', 'hoc_ky', 'sinh_vien__lop').filter(
         trang_thai='chua_xu_ly'
     ).exclude(nguoi_dung_an=request.user)
+    if latest_hk:
+        qs = qs.filter(hoc_ky=latest_hk)
 
     if request.user.is_covan:
         qs = qs.filter(sinh_vien__lop__covan=request.user)
@@ -370,9 +381,12 @@ def canhbao_som_list(request):
     # Tính toán thông tin cảnh báo sớm sử dụng dữ liệu đã prefetch
     students_data = []
     counts = {'total': 0, 'safe': 0, 'monitor': 0, 'warning_1': 0, 'warning_2': 0}
+    latest_hk = HocKy.objects.filter(ket_qua__diem_tk__isnull=False).distinct().order_by('-nam_hoc', '-ky').first()
+    if not latest_hk:
+        latest_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
 
     for sv in student_list:
-        analysis = tinh_canh_bao_som(sv, prefetch_results=prefetch_results, prefetch_warnings=prefetch_warnings)
+        analysis = tinh_canh_bao_som(sv, hoc_ky=latest_hk, prefetch_results=prefetch_results, prefetch_warnings=prefetch_warnings)
         level = analysis['muc_nguy_co']
         counts['total'] += 1
         if level in counts:
@@ -421,6 +435,7 @@ def canhbao_som_list(request):
         'selected_khoa_hoc': khoa_hoc,
         'muc_nguy_co_filter': muc_nguy_co_filter,
         'q': q,
+        'latest_hk': latest_hk,
     })
 
 
@@ -443,11 +458,15 @@ def canhbao_som_detail(request, mssv):
     from results.models import KetQuaHocTap
     from .models import LichSuGuiCanhBaoSom
 
-    # Lấy học kỳ được chọn để xem phân tích chi tiết (mặc định là học kỳ gần nhất)
+    # Lấy học kỳ được chọn để xem phân tích chi tiết (mặc định là học kỳ gần nhất có điểm của sinh viên này)
     hk_id = request.GET.get('hoc_ky', '')
     selected_hk = None
     if hk_id:
         selected_hk = get_object_or_404(HocKy, pk=hk_id)
+    else:
+        selected_hk = HocKy.objects.filter(ket_qua__sinh_vien=sv, ket_qua__diem_tk__isnull=False).distinct().order_by('-nam_hoc', '-ky').first()
+        if not selected_hk:
+            selected_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
 
     # Prefetch kết quả của sinh viên này
     results_list = list(
@@ -518,11 +537,13 @@ def canhbao_som_gui_email(request, mssv):
 
     subject = f'[TVU] Thông báo Cảnh báo sớm Học tập & Học vụ - Mức độ: {analysis["muc_nguy_co_display"]}'
     
-    goi_y_str = "\nKhuyến nghị cải thiện:\n"
-    for idx, gy in enumerate(analysis['goi_y'], 1):
-        # Remove markdown bold syntax for plain text email
-        clean_gy = gy.replace('**', '')
-        goi_y_str += f"{idx}. {clean_gy}\n"
+    goi_y_str = ""
+    if analysis['goi_y']:
+        goi_y_str = "\nKhuyến nghị cải thiện:\n"
+        for idx, gy in enumerate(analysis['goi_y'], 1):
+            # Remove markdown bold syntax for plain text email
+            clean_gy = gy.replace('**', '')
+            goi_y_str += f"{idx}. {clean_gy}\n"
 
     body = f"""Kính gửi Sinh viên {sv.ho_ten},
 
@@ -642,8 +663,11 @@ def canhbao_som_gui_email_hang_loat(request):
     for cb in warnings_list:
         prefetch_warnings[(cb.sinh_vien_id, cb.hoc_ky_id)] = cb
 
+    latest_hk = HocKy.objects.filter(ket_qua__diem_tk__isnull=False).distinct().order_by('-nam_hoc', '-ky').first()
+    if not latest_hk:
+        latest_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
     for sv in student_list:
-        analysis = tinh_canh_bao_som(sv, prefetch_results=prefetch_results, prefetch_warnings=prefetch_warnings)
+        analysis = tinh_canh_bao_som(sv, hoc_ky=latest_hk, prefetch_results=prefetch_results, prefetch_warnings=prefetch_warnings)
         level = analysis['muc_nguy_co']
 
         # Chỉ gửi cho sinh viên khớp với bộ lọc mức nguy cơ (không gửi cho sinh viên An toàn nếu chỉ lọc Cảnh báo/Theo dõi)
@@ -659,10 +683,12 @@ def canhbao_som_gui_email_hang_loat(request):
 
         subject = f'[TVU] Thông báo Cảnh báo sớm Học tập & Học vụ - Mức độ: {analysis["muc_nguy_co_display"]}'
         
-        goi_y_str = "\nKhuyến nghị cải thiện:\n"
-        for idx, gy in enumerate(analysis['goi_y'], 1):
-            clean_gy = gy.replace('**', '')
-            goi_y_str += f"{idx}. {clean_gy}\n"
+        goi_y_str = ""
+        if analysis['goi_y']:
+            goi_y_str = "\nKhuyến nghị cải thiện:\n"
+            for idx, gy in enumerate(analysis['goi_y'], 1):
+                clean_gy = gy.replace('**', '')
+                goi_y_str += f"{idx}. {clean_gy}\n"
 
         body = f"""Kính gửi Sinh viên {sv.ho_ten},
 

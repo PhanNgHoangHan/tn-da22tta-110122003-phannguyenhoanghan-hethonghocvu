@@ -654,8 +654,8 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
         'tc_tl_reg': 0,
         'tc_tl_pass': 0,
         'ly_do': 'Chưa có kết quả học tập ghi nhận.',
-        'xu_huong': 'stable',
-        'xu_huong_display': 'Chưa có xu hướng',
+        'xu_huong': 'none',
+        'xu_huong_display': '-',
         'diem_yeu': [],
         'goi_y': []
     }
@@ -682,7 +682,7 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
 
     if gpa_tl_4 < 1.2:
         muc_nguy_co = 'warning_2'
-        muc_nguy_co_display = 'Cảnh báo mức 2 (Nguy hiểm)'
+        muc_nguy_co_display = 'Cảnh báo mức 2'
         mau_nguy_co = 'danger'
         ly_do = f'ĐTBCTL quá thấp ({gpa_tl_4:.2f} < 1.20). Có nguy cơ cao bị buộc thôi học.'
     elif gpa_tl_4 < 1.8:
@@ -723,26 +723,27 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
                 ly_do = f'Bị cảnh báo học vụ chính thức lần 1 ở học kỳ {target_hk}.'
 
     # Dự báo xu hướng (so sánh với học kỳ liền trước)
-    target_idx = hockys.index(target_hk)
-    xu_huong = 'stable'
-    xu_huong_display = 'Chưa có xu hướng'
+    xu_huong = 'none'
+    xu_huong_display = '-'
     
-    if target_idx > 0:
-        prev_hk = hockys[target_idx - 1]
-        if prefetch_results is not None:
-            _, prev_gpa_tl_4, _, _ = tinh_dtbctl_in_memory(student_results, prev_hk)
-        else:
-            _, prev_gpa_tl_4, _, _ = tinh_dtbctl(sinh_vien, prev_hk)
-        diff = gpa_tl_4 - prev_gpa_tl_4
-        if diff > 0.1:
-            xu_huong = 'up'
-            xu_huong_display = 'Xu hướng cải thiện tốt 📈'
-        elif diff < -0.1:
-            xu_huong = 'down'
-            xu_huong_display = 'Xu hướng sa sút 📉'
-        else:
-            xu_huong = 'stable'
-            xu_huong_display = 'Xu hướng ổn định ➡️'
+    if len(hockys) >= 2 and target_hk in hockys:
+        target_idx = hockys.index(target_hk)
+        if target_idx > 0:
+            prev_hk = hockys[target_idx - 1]
+            if prefetch_results is not None:
+                _, prev_gpa_tl_4, _, _ = tinh_dtbctl_in_memory(student_results, prev_hk)
+            else:
+                _, prev_gpa_tl_4, _, _ = tinh_dtbctl(sinh_vien, prev_hk)
+            diff = gpa_tl_4 - prev_gpa_tl_4
+            if diff > 0.1:
+                xu_huong = 'up'
+                xu_huong_display = 'Xu hướng cải thiện tốt'
+            elif diff < -0.1:
+                xu_huong = 'down'
+                xu_huong_display = 'Xu hướng sa sút'
+            else:
+                xu_huong = 'stable'
+                xu_huong_display = 'Xu hướng ổn định'
 
     # Tầng 4: Phân tích điểm yếu & môn ảnh hưởng GPA
     # Lấy điểm tốt nhất của từng môn từ đầu khóa đến học kỳ target_hk
@@ -774,6 +775,10 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
 
     weak_points = []
     for best_kq in best_results.values():
+        # Chỉ phân tích các học phần bị điểm yếu thuộc học kỳ đang xét
+        if best_kq.hoc_ky_id != target_hk.id:
+            continue
+            
         diem_10 = best_kq.diem_tk
         diem_ch = diem_chu(diem_10)
         diem_h4 = diem_he4(diem_10)
@@ -802,25 +807,23 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
 
     # Gợi ý giải pháp cụ thể
     goi_y = []
-    failed_courses = [w for w in weak_points if w['diem_chu'] == 'F']
-    
-    if failed_courses:
-        for f in failed_courses[:2]:
-            goi_y.append(f"Đăng ký học lại môn {f['ten_mh']} ({f['so_tc']} TC, hiện tại điểm F) để xóa nợ môn và tăng ĐTBTL lên khoảng +{f['improvement']:.2f} điểm.")
-            
-    # Gợi ý về khối lượng học tập
-    if len(failed_courses) >= 3 or gpa_hk_4 < 1.5:
-        goi_y.append("Học kỳ tiếp theo nên giảm bớt khối lượng đăng ký học tập xuống mức tối thiểu (khoảng 12 - 14 tín chỉ) để tập trung nâng cao điểm số các môn bắt buộc.")
-    else:
-        goi_y.append("Duy trì đăng ký khối lượng học tập vừa sức (14 - 18 tín chỉ) và phân bổ thời gian học bài đều đặn mỗi tuần.")
+    if muc_nguy_co != 'safe':
+        failed_courses = [w for w in weak_points if w['diem_chu'] == 'F']
+        
+        if failed_courses:
+            for f in failed_courses[:2]:
+                goi_y.append(f"Đăng ký học lại môn {f['ten_mh']} ({f['so_tc']} TC, hiện tại điểm F) để xóa nợ môn.")
+                
+        # Gợi ý về cải thiện điểm số
+        goi_y.append("Nên học cải thiện các môn điểm còn thấp để có kết quả tốt hơn.")
 
-    # Gợi ý liên hệ cố vấn học tập
-    if sinh_vien.lop and sinh_vien.lop.covan:
-        goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.lop.covan.full_name} (Email: {sinh_vien.lop.covan.email or 'chưa có'}) để nhận tư vấn xây dựng lại lộ trình học tập cá nhân.")
-    elif sinh_vien.covan:
-        goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.covan.full_name} (Email: {sinh_vien.covan.email or 'chưa có'}) để nhận tư vấn học tập.")
-    else:
-        goi_y.append("Chủ động liên hệ văn phòng Khoa hoặc trung tâm hỗ trợ sinh viên để nhận tư vấn học vụ.")
+        # Gợi ý liên hệ cố vấn học tập
+        if sinh_vien.lop and sinh_vien.lop.covan:
+            goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.lop.covan.full_name} (Email: {sinh_vien.lop.covan.email or 'chưa có'}) để nhận tư vấn xây dựng lại lộ trình học tập cá nhân.")
+        elif sinh_vien.covan:
+            goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.covan.full_name} (Email: {sinh_vien.covan.email or 'chưa có'}) để nhận tư vấn học tập.")
+        else:
+            goi_y.append("Chủ động liên hệ văn phòng Khoa hoặc trung tâm hỗ trợ sinh viên để nhận tư vấn học vụ.")
 
     return {
         'sinh_vien': sinh_vien,

@@ -106,7 +106,7 @@
         <button onclick="document.getElementById('sidebar').classList.toggle('open')"
                 style="background:none;border:none;font-size:20px;cursor:pointer;display:none;color:#ffffff;" id="menu-btn">☰</button>
         {% with vn=request.resolver_match.view_name %}
-        {% if vn != 'dashboard:index' and vn != 'students:sinhvien_list' and vn != 'students:monhoc_list' and vn != 'students:hocky_list' and vn != 'results:ketqua_list' and vn != 'academic_warnings:canhbao_list' and vn != 'dashboard:bao_cao' and vn != 'results:import_diem' and vn != 'students:import_sinhvien' and vn != 'students:import_monhoc' and vn != 'accounts:user_list' and vn != 'accounts:profile' and vn != 'accounts:change_password' %}
+        {% if vn != 'dashboard:index' and vn != 'students:sinhvien_list' and vn != 'students:monhoc_list' and vn != 'students:hocky_list' and vn != 'results:ketqua_list' and vn != 'academic_warnings:canhbao_list' and vn != 'dashboard:bao_cao' and vn != 'results:import_diem' and vn != 'students:import_sinhvien' and vn != 'students:import_monhoc' and vn != 'accounts:user_list' and vn != 'accounts:profile' and vn != 'accounts:change_password' and vn != 'academic_warnings:canhbao_som_list' and vn != 'academic_warnings:canhbao_som_detail' %}
         <button onclick="history.back()" class="btn btn-sm" style="margin-right: 8px; padding: 5px 12px; font-size: 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.12); color: #ffffff; cursor: pointer; transition: all 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.22)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">
             Quay lại
         </button>

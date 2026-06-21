@@ -34,13 +34,6 @@
                 <option value="da_xu_ly" {% if trang_thai == 'da_xu_ly' %}selected{% endif %}>Đã thông báo</option>
             </select>
 
-            <select name="hoc_ky" class="form-select" style="max-width:180px">
-                <option value="">-- Tất cả học kỳ --</option>
-                {% for hk in hockys %}
-                <option value="{{ hk.pk }}" {% if hk_id == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>
-                {% endfor %}
-            </select>
-
             {% if not request.user.is_sinhvien %}
             <select name="khoa_hoc" class="form-select" style="max-width:150px" onchange="this.form.submit()">
                 <option value="">-- Tất cả Khóa --</option>
@@ -81,7 +74,7 @@
 </div>
 
 <div class="card">
-    <div class="card-header"><span class="card-title">Danh sách sinh viên đang bị cảnh báo học vụ</span></div>
+    <div class="card-header"><span class="card-title">Danh sách sinh viên đang bị cảnh báo học vụ {% if latest_hk %}- Học kỳ: {{ latest_hk }}{% endif %}</span></div>
     <div class="card-body" style="padding:0">
         <div class="table-responsive">
             <table class="data-table">

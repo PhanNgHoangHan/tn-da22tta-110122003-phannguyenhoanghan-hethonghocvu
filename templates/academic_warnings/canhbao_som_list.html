@@ -111,7 +111,7 @@
 <div class="card">
     <div class="card-header">
         <span class="card-title">
-            Danh sách cảnh báo sớm
+            Danh sách cảnh báo sớm {% if latest_hk %}- Học kỳ: {{ latest_hk }}{% endif %}
             {% if muc_nguy_co_filter %}
                 - Mức nguy cơ: 
                 {% if muc_nguy_co_filter == 'safe' %}<span class="badge badge-success">An toàn</span>
@@ -131,11 +131,11 @@
                         <th>Họ tên</th>
                         <th>Lớp</th>
                         <th>Ngành</th>
-                        <th style="text-align: center;">GPA Tích lũy (Hệ 4)</th>
-                        <th style="text-align: center;">GPA Học kỳ (Hệ 4)</th>
+                        <th style="text-align: center;">GPA Tích lũy (Hệ 4/10)</th>
+                        <th style="text-align: center;">GPA Học kỳ (Hệ 4/10)</th>
                         <th style="text-align: center;">Mức nguy cơ</th>
                         <th>Xu hướng</th>
-                        <th>Ngày học kỳ phân tích</th>
+                        <th>Học kỳ</th>
                         <th style="text-align: center; width: 120px;">Thao tác</th>
                     </tr>
                 </thead>
@@ -161,11 +161,13 @@
                         </td>
                         <td>
                             {% if item.xu_huong == 'up' %}
-                            <span class="text-success fw-semibold">Cải thiện tốt 📈</span>
+                            <span class="text-success fw-semibold">Cải thiện tốt</span>
                             {% elif item.xu_huong == 'down' %}
-                            <span class="text-danger fw-semibold">Sa sút 📉</span>
+                            <span class="text-danger fw-semibold">Sa sút</span>
+                            {% elif item.xu_huong == 'stable' %}
+                            <span class="text-primary fw-semibold">Ổn định</span>
                             {% else %}
-                            <span class="text-muted">Ổn định ➡️</span>
+                            <span class="text-muted">-</span>
                             {% endif %}
                         </td>
                         <td style="font-size: 12px; color: var(--text-secondary);">

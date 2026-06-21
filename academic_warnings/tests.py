@@ -81,7 +81,7 @@ class EarlyWarningTestCase(TestCase):
         
         analysis = tinh_canh_bao_som(self.sv)
         self.assertEqual(analysis['muc_nguy_co'], 'warning_2')
-        self.assertEqual(analysis['muc_nguy_co_display'], 'Cảnh báo mức 2 (Nguy hiểm)')
+        self.assertEqual(analysis['muc_nguy_co_display'], 'Cảnh báo mức 2')
         self.assertEqual(len(analysis['diem_yeu']), 2) # Both are F
 
     def test_early_warning_views(self):

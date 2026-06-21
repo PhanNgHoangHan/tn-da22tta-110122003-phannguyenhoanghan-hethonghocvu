@@ -88,7 +88,7 @@
                 </div>
                 <div>
                     <div class="text-muted">Xu hướng ĐTB tích lũy:</div>
-                    <strong>{{ analysis.xu_huong_display }}</strong>
+                    <strong class="{% if analysis.xu_huong == 'up' %}text-success{% elif analysis.xu_huong == 'down' %}text-danger{% elif analysis.xu_huong == 'stable' %}text-primary{% else %}text-muted{% endif %}">{{ analysis.xu_huong_display }}</strong>
                 </div>
             </div>
         </div>
@@ -119,7 +119,7 @@
     </div>
     <div class="card-body">
         <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 20px;">
-            Hệ thống phân tích các học phần bị điểm yếu (F, D, D+). Hãy <strong>tích chọn vào hộp kiểm</strong> ở đầu mỗi môn học để mô phỏng sự cải thiện của GPA tích lũy sau khi học lại và đạt điểm <strong>A (4.0)</strong>:
+            Hệ thống phân tích các học phần bị điểm yếu (F, D, D+). Hãy <strong>tích chọn vào hộp kiểm</strong> ở đầu mỗi môn học để mô phỏng sự cải thiện của GPA tích lũy sau khi học lại:
         </p>
         
         <div class="table-responsive">
@@ -183,7 +183,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="9" style="text-align: center; color: var(--success); padding: 30px;">
-                            🎉 Tuyệt vời! Sinh viên không có học phần điểm yếu (F, D, D+) tính đến thời điểm này.
+                            Tuyệt vời! Sinh viên không có học phần điểm yếu trong học kỳ này.
                         </td>
                     </tr>
                     {% endfor %}
@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (simulatedGpa < 1.2) {
             newRisk = 'warning_2';
-            newRiskDisplay = 'Cảnh báo mức 2 (Nguy hiểm)';
+            newRiskDisplay = 'Cảnh báo mức 2';
             badgeClass = 'badge-danger';
         } else if (simulatedGpa < 1.8) {
             newRisk = 'warning_1';
