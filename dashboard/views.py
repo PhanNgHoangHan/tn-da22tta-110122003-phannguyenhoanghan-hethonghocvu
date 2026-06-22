@@ -101,10 +101,17 @@ def dashboard_covan(request):
     # sv_dang_hoc: bao gồm cả dang_hoc và canh_bao (tương thích dữ liệu cũ)
     sv_dang_hoc = svs.filter(trang_thai__in=['dang_hoc', 'canh_bao']).count()
 
-    # Cảnh báo mới
+    # Cảnh báo mới của kỳ gần nhất
+    latest_hk = HocKy.objects.filter(ket_qua__diem_tk__isnull=False).distinct().order_by('-nam_hoc', '-ky').first()
+    if not latest_hk:
+        latest_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
+
     canh_baos_moi = CanhBaoHocVu.objects.filter(
         sinh_vien__lop__covan=request.user, trang_thai='chua_xu_ly'
-    ).exclude(nguoi_dung_an=request.user).select_related('sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
+    )
+    if latest_hk:
+        canh_baos_moi = canh_baos_moi.filter(hoc_ky=latest_hk)
+    canh_baos_moi = canh_baos_moi.exclude(nguoi_dung_an=request.user).select_related('sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
 
     # Thống kê theo mức cảnh báo
     cb_stats = CanhBaoHocVu.objects.filter(sinh_vien__lop__covan=request.user).values(
@@ -623,15 +630,15 @@ def gui_bao_cao_covan(request):
         subject = f"[TVU] Báo cáo học tập & Cảnh báo học vụ lớp phụ trách - {filter_text}"
         body = f"""Kính gửi Thầy/Cô cố vấn học tập {covan.full_name},
 
-Hệ thống Quản lý Học vụ Đại học Trà Vinh gửi kèm báo cáo kết quả học tập và cảnh báo học vụ của lớp/sinh viên do Thầy/Cô phụ trách.
+Hệ thống Quản lý Học vụ Trường Kỹ thuật và Công nghệ - Đại học Trà Vinh gửi kèm báo cáo kết quả học tập và cảnh báo học vụ của lớp/sinh viên do Thầy/Cô phụ trách.
 
-- Kỳ báo cáo: {filter_text}
+- Kỳ/năm báo cáo: {filter_text}
 - File đính kèm: Báo cáo định dạng Excel (.xlsx).
 
 Kính đề nghị Thầy/Cô tải file đính kèm để xem chi tiết và thực hiện tư vấn học vụ kịp thời cho các sinh viên.
 
 Trân trọng,
-Phòng Giáo vụ - Đại học Trà Vinh
+Giáo vụ Trường Kỹ thuật và Công nghệ
 """
         try:
             email = EmailMessage(

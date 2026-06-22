@@ -27,11 +27,13 @@ class CanhBaoHocVu(models.Model):
     nguoi_dung_an = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
+        db_table='canhbaohocvu_nguoi_dung_an',
         related_name='canh_bao_da_an',
         verbose_name='Người dùng đã ẩn'
     )
 
     class Meta:
+        db_table = 'canhbaohocvu'
         verbose_name = 'Cảnh báo học vụ'
         verbose_name_plural = 'Cảnh báo học vụ'
         unique_together = ['sinh_vien', 'hoc_ky']
@@ -51,6 +53,7 @@ class LichSuGuiEmailBaoCao(models.Model):
     ngay_gui = models.DateTimeField(auto_now_add=True, verbose_name='Ngày gửi')
 
     class Meta:
+        db_table = 'lichsuguiemailbaocao'
         verbose_name = 'Lịch sử gửi báo cáo lớp'
         verbose_name_plural = 'Lịch sử gửi báo cáo lớp'
         unique_together = ['lop', 'hoc_ky']
@@ -67,6 +70,7 @@ class LichSuGuiCanhBaoSom(models.Model):
     gpa_he4 = models.FloatField(verbose_name='GPA tích lũy hệ 4')
 
     class Meta:
+        db_table = 'lichsuguicanhbaosom'
         verbose_name = 'Lịch sử gửi cảnh báo sớm'
         verbose_name_plural = 'Lịch sử gửi cảnh báo sớm'
         ordering = ['-ngay_gui']

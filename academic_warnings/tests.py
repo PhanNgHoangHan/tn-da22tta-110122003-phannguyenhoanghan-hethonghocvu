@@ -102,7 +102,8 @@ class EarlyWarningTestCase(TestCase):
         self.assertContains(response, 'Phan Nguyen Hoang Han')
         self.assertContains(response, 'Bảng tính mô phỏng cải thiện GPA')
         
-        # Send early warning email view
+        # Send early warning email view (must be admin or giaovu, covan is restricted)
+        self.client.login(username='admin', password='password')
         email_response = self.client.post(reverse('academic_warnings:canhbao_som_gui_email', args=[self.sv.mssv]))
         self.assertEqual(email_response.status_code, 302) # Redirects back to detail page
         

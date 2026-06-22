@@ -515,7 +515,7 @@ def canhbao_som_detail(request, mssv):
 @login_required
 def canhbao_som_gui_email(request, mssv):
     """Gửi email thông báo cảnh báo sớm cho 1 sinh viên."""
-    if not (request.user.is_giaovu or request.user.is_admin or request.user.is_covan):
+    if not (request.user.is_giaovu or request.user.is_admin):
         messages.error(request, 'Bạn không có quyền thực hiện hành động này.')
         return redirect('dashboard:index')
 
@@ -547,7 +547,7 @@ def canhbao_som_gui_email(request, mssv):
 
     body = f"""Kính gửi Sinh viên {sv.ho_ten},
 
-Hệ thống Quản lý Học vụ Đại học Trà Vinh gửi thông báo phân tích kết quả học tập tính đến học kỳ {analysis['hoc_ky']}:
+Hệ thống Quản lý Học vụ Trường Kỹ thuật và Công nghệ Đại học Trà Vinh gửi thông báo phân tích kết quả học tập tính đến học kỳ {analysis['hoc_ky']}:
 
 - Họ tên: {sv.ho_ten}
 - Mã số sinh viên: {sv.mssv}
@@ -565,7 +565,7 @@ Chi tiết phân tích: {analysis['ly_do']}
 Chúc bạn sớm cải thiện được kết quả học tập của mình. Nếu cần thêm hỗ trợ, vui lòng chủ động đặt lịch hẹn để trao đổi thêm với Cố vấn học tập của lớp.
 
 Trân trọng,
-Hệ thống Cảnh báo học tập TVU
+Giáo vụ Trường Kỹ thuật và Công nghệ
 """
 
     email_sent = False
@@ -601,7 +601,7 @@ Hệ thống Cảnh báo học tập TVU
 @login_required
 def canhbao_som_gui_email_hang_loat(request):
     """Gửi email cảnh báo sớm hàng loạt dựa trên bộ lọc đang hoạt động."""
-    if not (request.user.is_giaovu or request.user.is_admin or request.user.is_covan):
+    if not (request.user.is_giaovu or request.user.is_admin):
         messages.error(request, 'Bạn không có quyền thực hiện hành động này.')
         return redirect('dashboard:index')
 
@@ -692,7 +692,7 @@ def canhbao_som_gui_email_hang_loat(request):
 
         body = f"""Kính gửi Sinh viên {sv.ho_ten},
 
-Hệ thống Quản lý Học vụ Đại học Trà Vinh gửi thông báo phân tích kết quả học tập tính đến học kỳ {analysis['hoc_ky']}:
+Hệ thống Quản lý Học vụ Trường Kỹ thuật và Công nghệ - Đại học Trà Vinh gửi thông báo phân tích kết quả học tập tính đến học kỳ {analysis['hoc_ky']}:
 
 - Họ tên: {sv.ho_ten}
 - Mã số sinh viên: {sv.mssv}
@@ -710,7 +710,7 @@ Chi tiết phân tích: {analysis['ly_do']}
 Chúc bạn sớm cải thiện được kết quả học tập của mình. Nếu cần thêm hỗ trợ, vui lòng chủ động đặt lịch hẹn để trao đổi thêm với Cố vấn học tập của lớp.
 
 Trân trọng,
-Hệ thống Cảnh báo học tập TVU
+Giáo vụ Trường Kỹ thuật và Công nghệ
 """
 
         email_sent = False

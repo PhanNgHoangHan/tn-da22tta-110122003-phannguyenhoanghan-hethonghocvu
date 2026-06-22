@@ -76,7 +76,7 @@
 <div class="card mb-4">
     <!-- Header năm -->
     <div
-        style="background:#0f172a;border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #1e293b">
+        style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--accent)">
         <span style="color:white;font-weight:700;font-size:14.5px">Năm học {{ nam_hoc }}</span>
     </div>
 
@@ -236,12 +236,12 @@
 {% if theo_lop %}
 {% for ten_lop, theo_nam in theo_lop.items %}
 <div class="card mb-4">
-    <div style="background:#0f172a;border-radius:12px 12px 0 0;padding:12px 20px">
+    <div style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));border-radius:12px 12px 0 0;padding:12px 20px;border-bottom:2px solid var(--accent)">
         <span style="color:white;font-weight:700;font-size:15px">Lớp {{ ten_lop }}</span>
     </div>
     {% for nam_hoc, theo_hk in theo_nam.items %}
     <div style="border-bottom:2px solid #e2e8f0">
-        <div style="background:#1e293b;padding:9px 20px">
+        <div style="background:var(--primary);padding:9px 20px">
             <span style="color:white;font-weight:600;font-size:13.5px">Năm học {{ nam_hoc }}</span>
         </div>
         {% for hk_ten, rows in theo_hk.items %}

@@ -27,7 +27,7 @@
 {% if grouped_monhocs %}
     {% for hk_num, subjects in grouped_monhocs.items %}
     <div class="card mb-4">
-        <div class="card-header" style="background:#1e293b;color:white;border-radius:12px 12px 0 0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div class="card-header" style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));color:white;border-radius:12px 12px 0 0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--accent)">
             <span class="card-title" style="color:white;font-size:15px">{% if hk_num %}Học kỳ {{ hk_num }}{% else %}Chưa phân loại học kỳ{% endif %}</span>
             <div style="font-size:12.5px;color:#cbd5e1">
                 Số môn: <strong style="color:white">{{ subjects|length }}</strong>

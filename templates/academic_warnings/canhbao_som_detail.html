@@ -6,7 +6,7 @@
 
 {% block topbar_actions %}
 <div class="d-flex gap-2">
-    {% if not request.user.is_sinhvien %}
+    {% if request.user.is_giaovu or request.user.is_admin %}
     <form action="{% url 'academic_warnings:canhbao_som_gui_email' sv.mssv %}" method="post" style="margin: 0;"
         onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email cảnh báo sớm học vụ cho sinh viên này?', () => form.submit())">
         {% csrf_token %}
@@ -14,6 +14,8 @@
             Gửi email thông báo cho SV
         </button>
     </form>
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
+    {% elif request.user.is_covan %}
     <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
     {% else %}
     <a href="{% url 'dashboard:index' %}" class="btn btn-secondary btn-sm">Quay lại Dashboard</a>
@@ -114,12 +116,20 @@
 
 <!-- TẦNG 4: PHÂN TÍCH ĐIỂM YẾU & MÔ PHỎNG NÂNG ĐIỂM -->
 <div class="card mb-4">
-    <div class="card-header">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
         <span class="card-title">Phân tích điểm yếu và Mô phỏng cải thiện GPA</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="select-analysis-scope" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0; white-space: nowrap;">Phạm vi phân tích:</label>
+            <select id="select-analysis-scope" class="form-select form-select-sm" style="max-width: 280px; font-size: 13px; padding: 4px 8px;">
+                <option value="current">Học kỳ hiện tại</option>
+                <option value="improve">Các môn cần cải thiện</option>
+                <option value="debt">Các môn còn nợ</option>
+            </select>
+        </div>
     </div>
     <div class="card-body">
         <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 20px;">
-            Hệ thống phân tích các học phần bị điểm yếu (F, D, D+). Hãy <strong>tích chọn vào hộp kiểm</strong> ở đầu mỗi môn học để mô phỏng sự cải thiện của GPA tích lũy sau khi học lại:
+            Hệ thống phân tích các học phần điểm thấp (F, D, D+). Hãy <strong>tích chọn vào hộp kiểm</strong> ở đầu mỗi môn học để mô phỏng sự cải thiện của GPA tích lũy sau khi học lại:
         </p>
         
         <div class="table-responsive">
@@ -139,7 +149,7 @@
                 </thead>
                 <tbody>
                     {% for w in analysis.diem_yeu %}
-                    <tr class="subject-row" data-so-tc="{{ w.so_tc }}" data-diem-he4="{{ w.diem_he4 }}">
+                    <tr class="subject-row" data-so-tc="{{ w.so_tc }}" data-diem-he4="{{ w.diem_he4 }}" data-grade="{{ w.diem_chu }}" data-is-current-hk="{% if w.is_current_hk %}true{% else %}false{% endif %}">
                         <td style="text-align: center;">
                             <input type="checkbox" class="improve-chk" style="width: 16px; height: 16px; cursor: pointer;">
                         </td>
@@ -354,6 +364,71 @@ new Chart(document.getElementById('earlyGpaChart'), {
 
 // Logic mô phỏng cải thiện điểm học tập (Real-time GPA Simulation)
 document.addEventListener('DOMContentLoaded', function() {
+    const filterSelect = document.getElementById('select-analysis-scope');
+    const tableBody = document.querySelector('#weak-subjects-table tbody');
+
+    function applyFilter() {
+        if (!filterSelect || !tableBody) return;
+        const val = filterSelect.value;
+        let visibleCount = 0;
+        
+        const rows = tableBody.querySelectorAll('.subject-row');
+        rows.forEach(row => {
+            const isCurrent = row.getAttribute('data-is-current-hk') === 'true';
+            const grade = row.getAttribute('data-grade');
+            
+            let show = false;
+            if (val === 'current') {
+                show = isCurrent;
+            } else if (val === 'improve') {
+                show = (grade === 'D' || grade === 'D+');
+            } else if (val === 'debt') {
+                show = (grade === 'F');
+            }
+            
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Handle empty table state
+        let emptyRow = tableBody.querySelector('.empty-filter-row');
+        if (visibleCount === 0) {
+            if (!emptyRow) {
+                emptyRow = document.createElement('tr');
+                emptyRow.className = 'empty-filter-row';
+                const td = document.createElement('td');
+                td.colSpan = 9;
+                td.style.textAlign = 'center';
+                td.style.padding = '30px';
+                td.style.color = 'var(--text-muted)';
+                emptyRow.appendChild(td);
+                tableBody.appendChild(emptyRow);
+            }
+            
+            if (val === 'current') {
+                emptyRow.querySelector('td').textContent = 'Tuyệt vời! Sinh viên không có học phần điểm yếu trong học kỳ này.';
+            } else if (val === 'improve') {
+                emptyRow.querySelector('td').textContent = 'Sinh viên không có học phần cần cải thiện (D, D+) nào.';
+            } else if (val === 'debt') {
+                emptyRow.querySelector('td').textContent = 'Tuyệt vời! Sinh viên không còn môn nợ (F) nào.';
+            }
+            emptyRow.style.display = '';
+        } else {
+            if (emptyRow) {
+                emptyRow.style.display = 'none';
+            }
+        }
+    }
+
+    if (filterSelect) {
+        filterSelect.addEventListener('change', applyFilter);
+        applyFilter();
+    }
+
     const chks = document.querySelectorAll('.improve-chk');
     const selects = document.querySelectorAll('.improve-grade-select');
     const simulatedGpaEl = document.getElementById('simulated-gpa');

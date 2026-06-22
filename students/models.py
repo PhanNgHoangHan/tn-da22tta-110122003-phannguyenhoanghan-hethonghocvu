@@ -8,6 +8,7 @@ class Nganh(models.Model):
     khoa = models.CharField(max_length=200, default='Khoa Công nghệ thông tin', verbose_name='Khoa')
 
     class Meta:
+        db_table = 'nganh'
         verbose_name = 'Ngành học'
         verbose_name_plural = 'Ngành học'
 
@@ -27,6 +28,7 @@ class Lop(models.Model):
     )
 
     class Meta:
+        db_table = 'lop'
         verbose_name = 'Lớp học'
         verbose_name_plural = 'Lớp học'
         ordering = ['ten_lop']
@@ -63,6 +65,7 @@ class SinhVien(models.Model):
     ngay_nhap_hoc = models.DateField(null=True, blank=True, verbose_name='Ngày nhập học')
 
     class Meta:
+        db_table = 'sinhvien'
         verbose_name = 'Sinh viên'
         verbose_name_plural = 'Sinh viên'
         ordering = ['mssv']
@@ -97,6 +100,7 @@ class HocKy(models.Model):
     la_hien_tai = models.BooleanField(default=False, verbose_name='Học kỳ hiện tại')
 
     class Meta:
+        db_table = 'hocky'
         verbose_name = 'Học kỳ'
         verbose_name_plural = 'Học kỳ'
         unique_together = ['ky', 'nam_hoc']
@@ -153,6 +157,7 @@ class MonHoc(models.Model):
     hoc_ky_ctdt = models.PositiveSmallIntegerField(null=True, blank=True, verbose_name='Học kỳ (CTĐT)')
 
     class Meta:
+        db_table = 'monhoc'
         verbose_name = 'Môn học'
         verbose_name_plural = 'Môn học'
         ordering = ['ma_mh']

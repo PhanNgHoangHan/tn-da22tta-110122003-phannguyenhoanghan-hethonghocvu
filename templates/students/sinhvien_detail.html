@@ -9,14 +9,14 @@
         <div class="card-header"><span class="card-title">Thông tin sinh viên</span></div>
         <div class="card-body">
             <table style="width:100%;font-size:13.5px">
-                <tr><td style="color:#000000;padding:6px 0;width:130px">MSSV</td><td style="color:#3399FF"><strong>{{ sv.mssv }}</strong></td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Họ tên</td><td style="color:#3399FF">{{ sv.ho_ten }}</td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Giới tính</td><td style="color:#3399FF">{{ sv.get_gioi_tinh_display|default:'-' }}</td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Ngày sinh</td><td style="color:#3399FF">{{ sv.ngay_sinh|date:"d/m/Y"|default:'-' }}</td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Ngành</td><td style="color:#3399FF">{{ sv.nganh.ten_nganh|default:'-' }}{% if sv.khoa %} khoa {{ sv.khoa }}{% endif %}</td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Lớp</td><td style="color:#3399FF">{{ sv.lop.ten_lop|default:'-' }}</td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Email</td><td style="color:#3399FF">{{ sv.email|default:'-' }}</td></tr>
-                <tr><td style="color:#000000;padding:6px 0">Cố vấn HT</td><td style="color:#3399FF">{{ sv.ten_covan }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0;width:130px">MSSV</td><td style="color:#3399FF;font-weight:bold">{{ sv.mssv }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Họ tên</td><td style="color:#3399FF;font-weight:bold">{{ sv.ho_ten }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Giới tính</td><td style="color:#3399FF;font-weight:bold">{{ sv.get_gioi_tinh_display|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Ngày sinh</td><td style="color:#3399FF;font-weight:bold">{{ sv.ngay_sinh|date:"d/m/Y"|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Ngành</td><td style="color:#3399FF;font-weight:bold">{{ sv.nganh.ten_nganh|default:'-' }}{% if sv.khoa %} khoa {{ sv.khoa }}{% endif %}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Lớp</td><td style="color:#3399FF;font-weight:bold">{{ sv.lop.ten_lop|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Email</td><td style="color:#3399FF;font-weight:bold">{{ sv.email|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Cố vấn HT</td><td style="color:#3399FF;font-weight:bold">{{ sv.ten_covan }}</td></tr>
                 <tr><td style="color:#000000;padding:6px 0">Trạng thái</td>
                     <td>{% if sv.trang_thai == 'dang_hoc' %}<span class="badge badge-success">Đang học</span>
                     {% elif sv.trang_thai == 'canh_bao' %}<span class="badge badge-warning">Cảnh báo</span>
@@ -79,7 +79,7 @@
 {% if ket_qua_theo_nam %}
 {% for nam_hoc, hk_list in ket_qua_theo_nam.items %}
 <div class="card mb-4">
-    <div class="card-header" style="background:#0f172a;color:white;border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #1e293b">
+    <div class="card-header" style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));color:white;border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--accent)">
         <span class="card-title" style="color:white;font-size:14.5px;margin:0">Năm học {{ nam_hoc }}</span>
     </div>
 

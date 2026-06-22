@@ -26,6 +26,7 @@ class KetQuaHocTap(models.Model):
     ghi_chu = models.CharField(max_length=200, blank=True, verbose_name='Ghi chú')
 
     class Meta:
+        db_table = 'ketquahoctap'
         verbose_name = 'Kết quả học tập'
         verbose_name_plural = 'Kết quả học tập'
         unique_together = ['sinh_vien', 'mon_hoc', 'hoc_ky', 'lan_hoc']

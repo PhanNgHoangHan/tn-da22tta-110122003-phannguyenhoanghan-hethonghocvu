@@ -275,15 +275,16 @@ def la_hk_dau_khoa(sinh_vien, hoc_ky):
 
 def dem_canh_bao_lien_tiep(sinh_vien, truoc_hoc_ky=None):
     """
-    Đếm tổng số lần bị cảnh báo tích lũy trước học kỳ `truoc_hoc_ky` (không cần liên tiếp).
-    Nếu `truoc_hoc_ky` là None, tính tổng số lần cảnh báo từ trước đến nay.
+    Đếm số lần bị cảnh báo liên tiếp ngay trước học kỳ `truoc_hoc_ky` (chỉ xét các học kỳ chính 1 và 2).
+    Nếu gặp học kỳ chính nào không bị cảnh báo học vụ, chuỗi liên tiếp sẽ bị ngắt (dừng đếm).
     """
     from academic_warnings.models import CanhBaoHocVu
     from students.models import HocKy
     from django.db.models import Q
 
     hockys = HocKy.objects.filter(
-        ket_qua__sinh_vien=sinh_vien
+        ket_qua__sinh_vien=sinh_vien,
+        ky__in=['1', '2']  # Chỉ xét các học kỳ chính
     ).distinct()
 
     if truoc_hoc_ky:
@@ -294,12 +295,14 @@ def dem_canh_bao_lien_tiep(sinh_vien, truoc_hoc_ky=None):
 
     hockys = hockys.order_by('-nam_hoc', '-ky')
 
-    total_warnings = 0
+    consecutive_warnings = 0
     for hk in hockys:
         co_cb, _ = kiem_tra_canh_bao(sinh_vien, hk)
         if co_cb:
-            total_warnings += 1
-    return total_warnings
+            consecutive_warnings += 1
+        else:
+            break  # Gặp học kỳ chính an toàn -> ngắt chuỗi liên tiếp
+    return consecutive_warnings
 
 
 
@@ -319,6 +322,9 @@ def kiem_tra_canh_bao(sinh_vien, hoc_ky, khong_dang_ky=False):
     Trả về (co_canh_bao: bool, ly_do: str).
     Việc xác định 'buoc_thoi_hoc' do caller quyết định dựa trên số lần liên tiếp.
     """
+    if hoc_ky.ky == '3':  # Học kỳ hè/học kỳ phụ không xét cảnh báo học vụ
+        return False, ''
+
     dtbchk_10, dtbchk_4, tc_hk, _ = tinh_dtbchk(sinh_vien, hoc_ky)
     dtbctl_10, dtbctl_4, tc_tl, _ = tinh_dtbctl(sinh_vien, hoc_ky)
     nam_hoc = xac_dinh_nam_hoc_sv(sinh_vien, hoc_ky)
@@ -434,7 +440,7 @@ def xac_dinh_muc_canh_bao(sinh_vien, hoc_ky, so_lan_lien_tiep):
 
     # Điều kiện 1: Số lần cảnh báo học tập vượt quá 2 (tức là cảnh báo đến lần thứ 3)
     if so_lan_lien_tiep > 2:
-        return 'buoc_thoi_hoc', f'Bị cảnh báo học vụ {so_lan_lien_tiep} lần liên tiếp (Buộc thôi học).'
+        return 'buoc_thoi_hoc', 'lien_tiep'
 
     # Điều kiện 2: Đã bị cảnh báo học tập và học kỳ chính kế tiếp có điểm trung bình chung học kỳ dưới 1,00 theo hệ 4.
     if hoc_ky.ky in ['1', '2']:
@@ -450,7 +456,7 @@ def xac_dinh_muc_canh_bao(sinh_vien, hoc_ky, so_lan_lien_tiep):
                 # Tính ĐTBCHK hệ 4 học kỳ này
                 _, dtbchk_4, tong_tc_hk, _ = tinh_dtbchk(sinh_vien, hoc_ky)
                 if tong_tc_hk > 0 and dtbchk_4 < 1.00:
-                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở học kỳ chính trước ({hk_truoc}) và Điểm trung bình học kỳ hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00) (Buộc thôi học).'
+                    return 'buoc_thoi_hoc', f'Đã bị cảnh báo ở học kỳ chính trước ({hk_truoc}) và Điểm trung bình học kỳ hệ 4 học kỳ này ({dtbchk_4:.2f} < 1.00)'
 
     return 'canh_bao', ''
 
@@ -470,38 +476,50 @@ def dong_bo_canh_bao_sinh_vien(sinh_vien):
     ).distinct().order_by('nam_hoc', 'ky')
 
     for hk in hockys:
-        co_canh_bao, ly_do = kiem_tra_canh_bao(sinh_vien, hk)
+        co_canh_bao, ly_do_check = kiem_tra_canh_bao(sinh_vien, hk)
         if co_canh_bao:
             so_lan_lien_tiep = dem_canh_bao_lien_tiep(sinh_vien, hk) + 1
             muc, ly_do_bo_sung = xac_dinh_muc_canh_bao(sinh_vien, hk, so_lan_lien_tiep)
             
-            # Nếu có từ 3 lần cảnh báo liên tiếp trở lên, tổng hợp lý do đầy đủ của các lần
-            if so_lan_lien_tiep >= 3:
-                import re
-                def clean_reason(text):
-                    if not text:
-                        return ''
-                    # Bỏ các prefix 'Lý do X:' lồng nhau
-                    text = re.sub(r'(?:^|;\s*)L\u00fd do \d+:\s*', lambda m: '; ' if m.group().startswith(';') else '', text)
-                    return text.strip()
-
-                reasons_list = []
-                # Lấy lại các học kỳ cảnh báo trước đó của sinh viên này trong chuỗi liên tiếp
-                prev_cbs = CanhBaoHocVu.objects.filter(
-                    sinh_vien=sinh_vien, 
-                    so_lan_canh_bao__lt=so_lan_lien_tiep
-                ).order_by('so_lan_canh_bao')
-                
-                for prev_cb in prev_cbs:
-                    _, r_raw = kiem_tra_canh_bao(sinh_vien, prev_cb.hoc_ky)
-                    reasons_list.append(f"Lần {prev_cb.so_lan_canh_bao} ({prev_cb.hoc_ky}): {clean_reason(r_raw)}")
-                
-                # Thêm lý do của lần hiện tại
-                reasons_list.append(f"Lần {so_lan_lien_tiep} ({hk}): {clean_reason(ly_do)}")
-                ly_do = "; ".join(reasons_list)
-
-            if ly_do_bo_sung:
-                ly_do = ly_do_bo_sung + ' ' + ly_do
+            if muc == 'buoc_thoi_hoc':
+                if ly_do_bo_sung == 'lien_tiep':
+                    # Tìm 3 học kỳ chính liên tiếp có cảnh báo kết thúc bằng học kỳ `hk` hiện tại
+                    from django.db.models import Q
+                    main_hks = HocKy.objects.filter(
+                        ket_qua__sinh_vien=sinh_vien,
+                        ky__in=['1', '2']
+                    ).filter(
+                        Q(nam_hoc__lt=hk.nam_hoc) |
+                        Q(nam_hoc=hk.nam_hoc, ky__lte=hk.ky)
+                    ).distinct().order_by('-nam_hoc', '-ky')
+                    
+                    consecutive_hks = []
+                    for m_hk in main_hks:
+                        co_cb, _ = kiem_tra_canh_bao(sinh_vien, m_hk)
+                        if co_cb:
+                            consecutive_hks.append(m_hk)
+                        else:
+                            break
+                        if len(consecutive_hks) == 3:
+                            break
+                    
+                    consecutive_hks.reverse()
+                    
+                    if len(consecutive_hks) >= 3:
+                        hk1_str = f"học kì {consecutive_hks[0].ky} - {consecutive_hks[0].nam_hoc}"
+                        hk2_str = f"học kì {consecutive_hks[1].ky} - {consecutive_hks[1].nam_hoc}"
+                        hk3_str = f"học kì {consecutive_hks[2].ky} - {consecutive_hks[2].nam_hoc}"
+                        
+                        import re
+                        r3_clean = re.sub(r'(?:^|;\s*)L\u00fd do \d+:\s*', lambda m: '; ' if m.group().startswith(';') else '', ly_do_check).strip()
+                        
+                        ly_do = f"Đã bị cảnh báo 3 lần liên tiếp, lần 1 {hk1_str}, lần 2 {hk2_str}, lần 3 {hk3_str} với lý do {r3_clean}"
+                    else:
+                        ly_do = f"Đã bị cảnh báo {so_lan_lien_tiep} lần liên tiếp"
+                else:
+                    ly_do = ly_do_bo_sung
+            else:
+                ly_do = ly_do_check
 
             CanhBaoHocVu.objects.update_or_create(
                 sinh_vien=sinh_vien, hoc_ky=hk,
@@ -775,10 +793,6 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
 
     weak_points = []
     for best_kq in best_results.values():
-        # Chỉ phân tích các học phần bị điểm yếu thuộc học kỳ đang xét
-        if best_kq.hoc_ky_id != target_hk.id:
-            continue
-            
         diem_10 = best_kq.diem_tk
         diem_ch = diem_chu(diem_10)
         diem_h4 = diem_he4(diem_10)
@@ -800,6 +814,8 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
                 'diem_he4': diem_h4,
                 'improvement': round(gpa_improvement, 3),
                 'hoc_ky': str(best_kq.hoc_ky),
+                'hoc_ky_id': best_kq.hoc_ky_id,
+                'is_current_hk': best_kq.hoc_ky_id == target_hk.id,
             })
                 
     # Sắp xếp điểm yếu: Môn F lên đầu, sau đó sắp xếp theo mức độ cải thiện GPA giảm dần
@@ -807,23 +823,28 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
 
     # Gợi ý giải pháp cụ thể
     goi_y = []
-    if muc_nguy_co != 'safe':
-        failed_courses = [w for w in weak_points if w['diem_chu'] == 'F']
-        
-        if failed_courses:
-            for f in failed_courses[:2]:
-                goi_y.append(f"Đăng ký học lại môn {f['ten_mh']} ({f['so_tc']} TC, hiện tại điểm F) để xóa nợ môn.")
-                
-        # Gợi ý về cải thiện điểm số
-        goi_y.append("Nên học cải thiện các môn điểm còn thấp để có kết quả tốt hơn.")
+    cv = sinh_vien.covan_hien_tai
+    cv_name = cv.full_name if cv else "Võ Hoàng Giang"
+    cv_email = cv.email if (cv and cv.email) else "giang@gmail.com"
 
-        # Gợi ý liên hệ cố vấn học tập
-        if sinh_vien.lop and sinh_vien.lop.covan:
-            goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.lop.covan.full_name} (Email: {sinh_vien.lop.covan.email or 'chưa có'}) để nhận tư vấn xây dựng lại lộ trình học tập cá nhân.")
-        elif sinh_vien.covan:
-            goi_y.append(f"Chủ động liên hệ Cố vấn học tập {sinh_vien.covan.full_name} (Email: {sinh_vien.covan.email or 'chưa có'}) để nhận tư vấn học tập.")
-        else:
-            goi_y.append("Chủ động liên hệ văn phòng Khoa hoặc trung tâm hỗ trợ sinh viên để nhận tư vấn học vụ.")
+    has_f = False
+    has_d_or_dplus = False
+    for r in best_results.values():
+        ch = diem_chu(r.diem_tk)
+        if ch == 'F':
+            has_f = True
+        elif ch in ['D', 'D+']:
+            has_d_or_dplus = True
+
+    if has_f:
+        goi_y.append("Đăng ký học lại môn còn nợ.")
+        goi_y.append("Nên học cải thiện các môn điểm còn thấp để có kết quả tốt hơn.")
+        goi_y.append(f"Chủ động liên hệ Cố vấn học tập {cv_name} (Email: {cv_email}) để nhận tư vấn xây dựng lại lộ trình học tập cá nhân.")
+    elif has_d_or_dplus:
+        goi_y.append("Nên học cải thiện các môn điểm còn thấp để có kết quả tốt hơn.")
+        goi_y.append(f"Chủ động liên hệ Cố vấn học tập {cv_name} (Email: {cv_email}) để nhận tư vấn xây dựng lại lộ trình học tập cá nhân.")
+    else:
+        goi_y.append("Kết quả học tập của bạn khá tốt, cố gắng duy trì và phát huy nhé!")
 
     return {
         'sinh_vien': sinh_vien,

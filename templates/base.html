@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dashboard Học Vụ{% endblock %}</title>
     <link rel="stylesheet" href="/static/css/main.css?v=1.0.1">
+    <link rel="icon" type="image/png" href="/static/img/logo_tvu.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
@@ -16,8 +17,8 @@
         <img src="/static/img/logo_tvu.png" alt="TVU Logo"
              style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0">
         <div>
-            <div class="brand-text">Đại học Trà Vinh</div>
-            <div class="brand-sub">Dashboard Học Vụ</div>
+            <div class="brand-text">Trường KT&CN</div>
+            <div class="brand-sub">Quản lý Học Vụ</div>
         </div>
     </div>
 
@@ -32,7 +33,7 @@
     <nav class="sidebar-nav">
         <div class="nav-section-title">Tổng quan</div>
         <a href="{% url 'dashboard:index' %}" class="{% if request.resolver_match.namespace == 'dashboard' and request.resolver_match.url_name == 'index' %}active{% endif %}">
-            Dashboard
+            Trang chủ
         </a>
 
         {% if not user.is_sinhvien %}

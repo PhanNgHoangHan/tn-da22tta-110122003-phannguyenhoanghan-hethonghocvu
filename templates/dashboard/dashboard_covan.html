@@ -7,7 +7,6 @@
 <div class="grid-4 mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px;">
     <!-- Tổng số -->
     <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--primary);">
-        <div class="stat-icon blue">SV</div>
         <div class="stat-info">
             <div class="stat-value">{{ total_sv }}</div>
             <div class="stat-label">Tổng sinh viên phụ trách</div>
@@ -16,7 +15,6 @@
     
     <!-- An toàn -->
     <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=safe" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--success);">
-        <div class="stat-icon green">✓</div>
         <div class="stat-info">
             <div class="stat-value" style="color: var(--success);">{{ cbs_stats.safe }}</div>
             <div class="stat-label">Học tập An toàn</div>
@@ -25,7 +23,6 @@
 
     <!-- Theo dõi -->
     <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=monitor" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--info);">
-        <div class="stat-icon teal">ℹ</div>
         <div class="stat-info">
             <div class="stat-value" style="color: var(--info);">{{ cbs_stats.monitor }}</div>
             <div class="stat-label">Đang Theo dõi</div>
@@ -34,7 +31,6 @@
 
     <!-- Cảnh báo mức 1 & 2 -->
     <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=warning_1" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--warning);">
-        <div class="stat-icon yellow">⚠</div>
         <div class="stat-info">
             <div class="stat-value" style="color: var(--warning);">{{ cbs_stats.warning_1 }}</div>
             <div class="stat-label">Cảnh báo sớm mức 1</div>
@@ -42,7 +38,6 @@
     </a>
 
     <a href="{% url 'academic_warnings:canhbao_som_list' %}?muc_nguy_co=warning_2" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--danger);">
-        <div class="stat-icon red">🚨</div>
         <div class="stat-info">
             <div class="stat-value" style="color: var(--danger);">{{ cbs_stats.warning_2 }}</div>
             <div class="stat-label">Cảnh báo sớm mức 2</div>
@@ -54,7 +49,7 @@
     <!-- Cảnh báo học vụ chính thức mới (chưa xử lý) -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Cảnh báo học vụ chính thức mới</span>
+            <span class="card-title">Cảnh báo học mới</span>
             <a href="{% url 'academic_warnings:canhbao_list' %}?trang_thai=chua_xu_ly" class="btn btn-sm btn-secondary" style="font-size:12px; padding:3px 8px;">Xem tất cả</a>
         </div>
         <div class="card-body" style="padding:0">
@@ -90,7 +85,7 @@
     <!-- Tầng 5: Báo cáo danh sách SV nguy cơ học vụ cao (Cảnh báo sớm) -->
     <div class="card">
         <div class="card-header">
-            <span class="card-title">Sinh viên có nguy cơ học vụ cần hỗ trợ</span>
+            <span class="card-title">Sinh viên có nguy cơ bị cảnh báo học vụ</span>
             <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-sm btn-secondary" style="font-size:12px; padding:3px 8px;">Xem tất cả phân tích</a>
         </div>
         <div class="card-body" style="padding:0">

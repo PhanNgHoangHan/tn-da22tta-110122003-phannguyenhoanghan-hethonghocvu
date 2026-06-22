@@ -14,6 +14,7 @@ class CustomUser(AbstractUser):
     phone = models.CharField(max_length=15, blank=True, verbose_name='Số điện thoại')
 
     class Meta:
+        db_table = 'customuser'
         verbose_name = 'Người dùng'
         verbose_name_plural = 'Người dùng'
 
