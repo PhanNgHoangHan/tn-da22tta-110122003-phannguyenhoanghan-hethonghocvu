@@ -149,3 +149,40 @@ class ViewPermissionsTestCase(TestCase):
         # Cumulative
         self.assertEqual(response.context['toan_khoa_dtb_10'], 7.00)
         self.assertEqual(response.context['toan_khoa_dtb_4'], 2.83)
+
+    def test_no_none_in_filters(self):
+        from students.models import Nganh, Lop
+        # Create a Nganh with None just to verify it gets filtered out
+        Nganh.objects.create(ma_nganh='None', ten_nganh='None', khoa='None')
+        Nganh.objects.create(ma_nganh='CNTT', ten_nganh='Cong nghe thong tin', khoa='Khoa Cong nghe thong tin')
+        Lop.objects.create(ten_lop='DA22TTA', khoa='2022')
+        Lop.objects.create(ten_lop='None', khoa='2022')
+        
+        self.client.login(username='admin', password='password')
+        
+        for url_name in ['students:sinhvien_list', 'results:ketqua_list', 'academic_warnings:canhbao_list', 'academic_warnings:canhbao_som_list']:
+            response = self.client.get(reverse(url_name))
+            self.assertEqual(response.status_code, 200)
+            
+            # Check context
+            khoas = response.context.get('khoas', [])
+            self.assertNotIn('None', khoas)
+            self.assertNotIn('none', [k.lower() for k in khoas if k])
+            
+            nganhs = response.context.get('nganhs', [])
+            for n in nganhs:
+                self.assertNotEqual(n.ma_nganh.lower(), 'none')
+                self.assertNotEqual(n.ten_nganh.lower(), 'none')
+                
+            lops = response.context.get('lops', [])
+            for l in lops:
+                self.assertNotEqual(l.ten_lop.lower(), 'none')
+
+        # Test AJAX API filter-options with 'None' department
+        response = self.client.get(reverse('students:api_filter_options'), {'khoa': 'None'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(len(data['nganhs']), 0)
+
+
+

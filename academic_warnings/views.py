@@ -64,18 +64,19 @@ def canhbao_list(request):
     from students.models import Nganh, Lop
     import re
     
-    nganhs = Nganh.objects.all()
-    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
+    nganhs = Nganh.objects.exclude(ma_nganh__iexact='None').exclude(ten_nganh__iexact='None')
+    khoas = [k for k in Nganh.objects.exclude(khoa__isnull=True).exclude(khoa='').values_list('khoa', flat=True).distinct() if k.lower() != 'none']
     
     # Lấy danh sách khóa học duy nhất từ các lớp
     unique_years = set()
     for name in Lop.objects.values_list('ten_lop', flat=True):
-        m = re.search(r'\d{2}', name)
-        if m:
-            unique_years.add("20" + m.group())
+        if name:
+            m = re.search(r'\d{2}', name)
+            if m:
+                unique_years.add("20" + m.group())
     khoa_hocs = sorted(list(unique_years), reverse=True)
 
-    lops = Lop.objects.all()
+    lops = Lop.objects.exclude(ten_lop__iexact='None')
     if request.user.is_covan:
         lops = lops.filter(covan=request.user)
     if nganh_id:
@@ -400,18 +401,19 @@ def canhbao_som_list(request):
     students_data.sort(key=lambda x: level_order.get(x['muc_nguy_co'], 4))
 
     # Bộ lọc dropdowns
-    nganhs = Nganh.objects.all()
-    khoas = Nganh.objects.values_list('khoa', flat=True).distinct()
+    nganhs = Nganh.objects.exclude(ma_nganh__iexact='None').exclude(ten_nganh__iexact='None')
+    khoas = [k for k in Nganh.objects.exclude(khoa__isnull=True).exclude(khoa='').values_list('khoa', flat=True).distinct() if k.lower() != 'none']
     
     import re
     unique_years = set()
     for name in Lop.objects.values_list('ten_lop', flat=True):
-        m = re.search(r'\d{2}', name)
-        if m:
-            unique_years.add("20" + m.group())
+        if name:
+            m = re.search(r'\d{2}', name)
+            if m:
+                unique_years.add("20" + m.group())
     khoa_hocs = sorted(list(unique_years), reverse=True)
 
-    lops = Lop.objects.all()
+    lops = Lop.objects.exclude(ten_lop__iexact='None')
     if request.user.is_covan:
         lops = lops.filter(covan=request.user)
     if nganh_id:
