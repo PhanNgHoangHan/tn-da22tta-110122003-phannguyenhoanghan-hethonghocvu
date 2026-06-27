@@ -334,6 +334,9 @@
                 <label for="id_password">Mật khẩu</label>
                 <input type="password" name="password" id="id_password" placeholder="Nhập mật khẩu..."
                     autocomplete="current-password">
+                <div style="text-align: right; margin-top: 8px;">
+                    <a href="{% url 'accounts:forgot_password' %}" style="font-size: 13px; color: #1a4f8a; text-decoration: none; font-weight: 500;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Quên mật khẩu?</a>
+                </div>
             </div>
             <button type="submit" class="btn-login">Đăng nhập</button>
         </form>
