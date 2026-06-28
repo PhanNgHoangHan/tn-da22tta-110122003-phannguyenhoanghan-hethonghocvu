@@ -9,6 +9,7 @@ def api_filter_options(request):
     """
     khoa = request.GET.get('khoa', '')
     nganh_id = request.GET.get('nganh', '')
+    khoa_hoc = request.GET.get('khoa_hoc', '')
     
     data = {
         'nganhs': [],
@@ -20,7 +21,10 @@ def api_filter_options(request):
         data['nganhs'] = list(nganhs)
         
     if nganh_id:
-        lops = Lop.objects.filter(nganh_id=nganh_id).exclude(ten_lop__iexact='None').values('id', 'ten_lop')
-        data['lops'] = list(lops)
+        lops = Lop.objects.filter(nganh_id=nganh_id).exclude(ten_lop__iexact='None')
+        if khoa_hoc:
+            cohort_suffix = khoa_hoc[-2:]
+            lops = lops.filter(ten_lop__istartswith=f'DA{cohort_suffix}')
+        data['lops'] = list(lops.values('id', 'ten_lop'))
         
     return JsonResponse(data)

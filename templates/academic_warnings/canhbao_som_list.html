@@ -8,9 +8,12 @@
     onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email cảnh báo sớm học vụ đến TẤT CẢ các sinh viên có nguy cơ trong danh sách bộ lọc hiện tại?', () => form.submit())"
     style="display:inline-block; margin: 0;">
     {% csrf_token %}
-    <button type="submit" class="btn btn-warning btn-sm"
-        style="display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; font-size: 13px; font-weight: 500;">
-        Gửi cảnh báo
+    <button type="submit" class="btn-send-notif">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+            <path
+                d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
+        </svg>
+        Gửi thông báo
     </button>
 </form>
 {% endif %}
@@ -73,41 +76,40 @@
             <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control"
                 style="max-width:200px">
 
-            <select name="khoa_hoc" class="form-select" style="max-width:150px" onchange="this.form.submit()">
+            <select name="khoa_hoc" class="form-select" style="max-width:150px">
                 <option value="">-- Tất cả Khóa --</option>
                 {% for kh in khoa_hocs %}
                 <option value="{{ kh }}" {% if selected_khoa_hoc == kh %}selected{% endif %}>Khóa {{ kh }}</option>
                 {% endfor %}
             </select>
 
-            <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px" onchange="document.getElementById('filter-nganh').value=''; document.getElementById('filter-lop').value=''; this.form.submit();">
+            <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px">
                 <option value="">-- Tất cả Khoa --</option>
                 {% for k in khoas %}
                 <option value="{{ k }}" {% if selected_khoa == k %}selected{% endif %}>{{ k }}</option>
                 {% endfor %}
             </select>
 
-            <select name="nganh" id="filter-nganh" class="form-select" style="max-width:200px" onchange="document.getElementById('filter-lop').value=''; this.form.submit();">
+            <select name="nganh" id="filter-nganh" class="form-select" style="max-width:200px">
                 <option value="">-- Tất cả Ngành --</option>
                 {% for n in nganhs %}
                 <option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
                 {% endfor %}
             </select>
 
-            <select name="lop" id="filter-lop" class="form-select" style="max-width:180px" onchange="this.form.submit()">
+            <select name="lop" id="filter-lop" class="form-select" style="max-width:180px">
                 <option value="">-- Tất cả Lớp --</option>
                 {% for l in lops %}
                 <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
                 {% endfor %}
             </select>
 
-            <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
             <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
         </form>
     </div>
 </div>
 
-<!-- Danh sách sinh viên và mức nguy cơ -->
+<div id="table-container">
 <div class="card">
     <div class="card-header">
         <span class="card-title">
@@ -190,6 +192,7 @@
         </div>
     </div>
 </div>
+</div>
 
 <style>
 .stat-card.active-filter {
@@ -201,4 +204,5 @@
     box-shadow: var(--shadow-md);
 }
 </style>
+
 {% endblock %}

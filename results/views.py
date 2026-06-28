@@ -51,7 +51,7 @@ def ketqua_list(request):
         # Áp dụng bộ lọc phân cấp cho cả Giáo vụ và Cố vấn
         if khoa_hoc:
             cohort_suffix = khoa_hoc[-2:]
-            qs = qs.filter(sinh_vien__lop__ten_lop__contains=cohort_suffix)
+            qs = qs.filter(sinh_vien__lop__ten_lop__istartswith=f'DA{cohort_suffix}')
         if khoa:
             qs = qs.filter(sinh_vien__nganh__khoa=khoa)
         if nganh_id:
@@ -219,10 +219,11 @@ def ketqua_list(request):
         lops = lops.filter(nganh_id=nganh_id)
     if khoa_hoc:
         cohort_suffix = khoa_hoc[-2:]
-        lops = lops.filter(ten_lop__contains=cohort_suffix)
+        lops = lops.filter(ten_lop__istartswith=f'DA{cohort_suffix}')
         
     if khoa:
         nganhs = nganhs.filter(khoa=khoa)
+        lops = lops.filter(nganh__khoa=khoa)
 
     return render(request, 'results/ketqua_list.html', {
         'theo_lop': theo_lop,

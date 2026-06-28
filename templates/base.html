@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Dashboard Học Vụ{% endblock %}</title>
-    <link rel="stylesheet" href="/static/css/main.css?v=1.0.1">
+    <link rel="stylesheet" href="/static/css/main.css?v=1.0.5">
     <link rel="icon" type="image/png" href="/static/img/logo_tvu.png">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     {% block extra_head %}{% endblock %}
@@ -130,6 +130,13 @@
 
         {% block content %}{% endblock %}
     </main>
+
+    <footer class="app-footer">
+        <div class="footer-title">HỆ THỐNG QUẢN LÝ HỌC VỤ - TRƯỜNG KT&CN - ĐHTV</div>
+        <div class="footer-line">Đ/c: Số 126, đường Nguyễn Thiện Thành, phường Hòa Thuận, tỉnh Vĩnh Long.</div>
+        <div class="footer-line">Điện thoại: 0932982218</div>
+        <div class="footer-line">Email: phannguyenhoanghan@gmail.com</div>
+    </footer>
 </div>
 
 {% else %}
@@ -167,6 +174,92 @@ alerts.forEach(alert => {
             alert.remove();
         }, 500);
     }, 5000);
+});
+
+// AJAX Instant Search & Filter logic
+document.addEventListener('DOMContentLoaded', () => {
+    const form = document.getElementById('filter-form');
+    if (!form) return;
+
+    const searchInput = form.querySelector('input[name="q"]');
+    let debounceTimeout;
+
+    // Intercept form submit to handle via AJAX
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        performSearch();
+    });
+
+    const performSearch = () => {
+        const formData = new FormData(form);
+        const searchParams = new URLSearchParams();
+
+        for (const [key, value] of formData.entries()) {
+            if (key !== 'csrfmiddlewaretoken') {
+                searchParams.append(key, value);
+            }
+        }
+
+        const url = `${form.action || window.location.pathname}?${searchParams.toString()}`;
+
+        // Update URL bar dynamically
+        window.history.replaceState(null, '', url);
+
+        // Fetch filtered template via AJAX
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newTableContainer = doc.getElementById('table-container');
+            const currentTableContainer = document.getElementById('table-container');
+
+            if (newTableContainer && currentTableContainer) {
+                currentTableContainer.innerHTML = newTableContainer.innerHTML;
+            }
+
+            // Sync select options in the filter form
+            const newForm = doc.getElementById('filter-form');
+            const currentForm = document.getElementById('filter-form');
+            if (newForm && currentForm) {
+                currentForm.querySelectorAll('select').forEach(select => {
+                    const name = select.name;
+                    const id = select.id;
+                    const newSelect = id ? doc.getElementById(id) : newForm.querySelector(`select[name="${name}"]`);
+                    if (newSelect) {
+                        select.innerHTML = newSelect.innerHTML;
+                        select.value = newSelect.value;
+                    }
+                });
+            }
+
+            // Sync topbar actions (Import / Export URLs)
+            const newTopbarActions = doc.querySelector('.topbar-actions');
+            const currentTopbarActions = document.querySelector('.topbar-actions');
+            if (newTopbarActions && currentTopbarActions) {
+                currentTopbarActions.innerHTML = newTopbarActions.innerHTML;
+            }
+        })
+        .catch(err => console.error('Instant Search Error:', err));
+    };
+
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimeout);
+            debounceTimeout = setTimeout(performSearch, 200);
+        });
+    }
+
+    form.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => {
+            performSearch();
+        });
+    });
 });
 </script>
 

@@ -7,8 +7,7 @@
     onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ đến TẤT CẢ các sinh viên chưa thông báo trong danh sách bộ lọc hiện tại?', () => form.submit())"
     style="display:inline-block; margin: 0 8px 0 0;">
     {% csrf_token %}
-    <button type="submit" class="btn btn-success btn-sm"
-        style="display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; font-size: 12.5px;">
+    <button type="submit" class="btn-send-notif">
         <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
             <path
                 d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
@@ -35,7 +34,7 @@
             </select>
 
             {% if not request.user.is_sinhvien %}
-            <select name="khoa_hoc" class="form-select" style="max-width:150px" onchange="this.form.submit()">
+            <select name="khoa_hoc" class="form-select" style="max-width:150px">
                 <option value="">-- Tất cả Khóa --</option>
                 {% for kh in khoa_hocs %}
                 <option value="{{ kh }}" {% if selected_khoa_hoc == kh %}selected{% endif %}>Khóa {{ kh }}</option>
@@ -67,12 +66,12 @@
             </select>
             {% endif %}
 
-            <button type="submit" class="btn btn-primary btn-sm">Lọc</button>
             <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
         </form>
     </div>
 </div>
 
+<div id="table-container">
 <div class="card">
     <div class="card-header"><span class="card-title">Danh sách sinh viên đang bị cảnh báo học vụ {% if latest_hk %}- Học kỳ: {{ latest_hk }}{% endif %}</span></div>
     <div class="card-body" style="padding:0">
@@ -150,66 +149,8 @@
         <div style="padding: 12px 20px; font-size: 13.5px; border-top: 1px solid var(--border); color: var(--text-secondary); font-weight: 500;">
             Tổng cộng: <strong style="color: var(--text-primary);">{{ canh_baos|length }}</strong> cảnh báo học vụ
         </div>
+    </div>
+</div>
 </div>
 {% endblock %}
-
-{% block extra_js %}
-{% if not request.user.is_sinhvien %}
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const khoaSelect = document.getElementById('filter-khoa');
-    const nganhSelect = document.getElementById('filter-nganh');
-    const lopSelect = document.getElementById('filter-lop');
-
-    khoaSelect.addEventListener('change', function() {
-        const khoaVal = this.value;
-        nganhSelect.innerHTML = '<option value="">-- Đang tải Ngành... --</option>';
-        lopSelect.innerHTML = '<option value="">-- Tất cả Lớp --</option>';
-
-        if (!khoaVal) {
-            nganhSelect.innerHTML = '<option value="">-- Tất cả Ngành --</option>';
-            return;
-        }
-
-        fetch(`/students/api/filter-options/?khoa=${encodeURIComponent(khoaVal)}`)
-            .then(res => res.json())
-            .then(data => {
-                let html = '<option value="">-- Tất cả Ngành --</option>';
-                data.nganhs.forEach(n => {
-                    html += `<option value="${n.id}">${n.ten_nganh}</option>`;
-                });
-                nganhSelect.innerHTML = html;
-            })
-            .catch(err => {
-                console.error('Error fetching majors:', err);
-                nganhSelect.innerHTML = '<option value="">-- Lỗi tải Ngành --</option>';
-            });
-    });
-
-    nganhSelect.addEventListener('change', function() {
-        const nganhVal = this.value;
-        lopSelect.innerHTML = '<option value="">-- Đang tải Lớp... --</option>';
-
-        if (!nganhVal) {
-            lopSelect.innerHTML = '<option value="">-- Tất cả Lớp --</option>';
-            return;
-        }
-
-        fetch(`/students/api/filter-options/?nganh=${encodeURIComponent(nganhVal)}`)
-            .then(res => res.json())
-            .then(data => {
-                let html = '<option value="">-- Tất cả Lớp --</option>';
-                data.lops.forEach(l => {
-                    html += `<option value="${l.id}">${l.ten_lop}</option>`;
-                });
-                lopSelect.innerHTML = html;
-            })
-            .catch(err => {
-                console.error('Error fetching classes:', err);
-                lopSelect.innerHTML = '<option value="">-- Lỗi tải Lớp --</option>';
-            });
-    });
-});
-</script>
-{% endif %}
-{% endblock %}
+

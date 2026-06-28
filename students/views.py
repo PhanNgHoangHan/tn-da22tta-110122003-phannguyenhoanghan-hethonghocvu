@@ -48,7 +48,7 @@ def sinhvien_list(request):
         # Áp dụng bộ lọc phân cấp cho cả Giáo vụ và Cố vấn
         if khoa_hoc:
             cohort_suffix = khoa_hoc[-2:]
-            qs = qs.filter(lop__ten_lop__contains=cohort_suffix)
+            qs = qs.filter(lop__ten_lop__istartswith=f'DA{cohort_suffix}')
         if khoa:
             qs = qs.filter(nganh__khoa=khoa)
         if nganh_id:
@@ -92,10 +92,11 @@ def sinhvien_list(request):
         lops = lops.filter(nganh_id=nganh_id)
     if khoa_hoc:
         cohort_suffix = khoa_hoc[-2:]
-        lops = lops.filter(ten_lop__contains=cohort_suffix)
+        lops = lops.filter(ten_lop__istartswith=f'DA{cohort_suffix}')
     
     if khoa:
         nganhs = nganhs.filter(khoa=khoa)
+        lops = lops.filter(nganh__khoa=khoa)
 
     return render(request, 'students/sinhvien_list.html', {
         'sinhviens': qs, 

@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Đăng nhập - Hệ thống Quản lý Học vụ | Đại học Trà Vinh</title>
-    <link rel="stylesheet" href="/static/css/main.css?v=1.0.1">
+    <link rel="stylesheet" href="/static/css/main.css?v=1.0.5">
     <link rel="icon" type="image/png" href="/static/img/logo_tvu.png">
     <style>
         * {
@@ -25,7 +25,7 @@
         .login-left {
             flex: 1;
             position: relative;
-            background: #0f2540;
+            background: #1b74b3;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -46,9 +46,9 @@
             position: absolute;
             inset: 0;
             background: linear-gradient(to bottom,
-                    rgba(15, 37, 64, 0.2) 0%,
-                    rgba(15, 37, 64, 0.5) 60%,
-                    rgba(15, 37, 64, 0.92) 100%);
+                    rgba(27, 116, 179, 0.2) 0%,
+                    rgba(27, 116, 179, 0.5) 60%,
+                    rgba(27, 116, 179, 0.92) 100%);
         }
 
         .login-left-content {
@@ -59,9 +59,9 @@
 
         .campus-label {
             display: inline-block;
-            background: rgba(200, 168, 75, 0.18);
-            border: 1px solid rgba(200, 168, 75, 0.45);
-            color: #c8a84b;
+            background: rgba(46, 147, 216, 0.18);
+            border: 2px solid #2e93d8;
+            color: #ffffff;
             font-size: 11px;
             font-weight: 700;
             letter-spacing: 1.5px;
@@ -82,7 +82,7 @@
         }
 
         .login-left-content p {
-            color: rgba(255, 255, 255, 0.72);
+            color: rgba(255, 255, 255, 0.8);
             font-size: 15px;
             line-height: 1.7;
             max-width: 400px;
@@ -103,12 +103,12 @@
             font-family: 'Inter', sans-serif;
             font-size: 26px;
             font-weight: 700;
-            color: #c8a84b;
+            color: #56b4f7;
         }
 
         .campus-stat .lbl {
             font-size: 11.5px;
-            color: rgba(255, 255, 255, 0.6);
+            color: rgba(255, 255, 255, 0.7);
             margin-top: 3px;
         }
 
@@ -139,14 +139,14 @@
             height: 52px;
             border-radius: 50%;
             object-fit: cover;
-            border: 2px solid #c8a84b;
+            border: 2px solid #2e93d8;
         }
 
         .login-logo-text .name {
             font-family: 'Inter', sans-serif;
             font-size: 17px;
             font-weight: 700;
-            color: #0f2540;
+            color: #1e3a5f;
             line-height: 1.2;
         }
 
@@ -164,7 +164,7 @@
             font-family: 'Inter', sans-serif;
             font-size: 26px;
             font-weight: 700;
-            color: #0f2540;
+            color: #1e3a5f;
             letter-spacing: -0.01em;
         }
 
@@ -176,7 +176,7 @@
 
         .login-divider {
             height: 1px;
-            background: linear-gradient(to right, #c8a84b, transparent);
+            background: linear-gradient(to right, #2e93d8, transparent);
             width: 60px;
             margin: 20px 0 28px;
         }
@@ -199,7 +199,7 @@
             border: 1.5px solid #e2e8f0;
             border-radius: 10px;
             font-size: 14.5px;
-            color: #0f2540;
+            color: #1e3a5f;
             background: #f9fafb;
             transition: all 0.2s;
             font-family: 'Inter', sans-serif;
@@ -207,9 +207,9 @@
 
         .form-group input:focus {
             outline: none;
-            border-color: #1a4f8a;
+            border-color: #2e93d8;
             background: #ffffff;
-            box-shadow: 0 0 0 4px rgba(26, 79, 138, 0.1);
+            box-shadow: 0 0 0 4px rgba(46, 147, 216, 0.1);
         }
 
         .error-msg {
@@ -228,7 +228,7 @@
             padding: 14px;
             font-size: 15px;
             font-weight: 600;
-            background: linear-gradient(135deg, #1a4f8a, #0f3460);
+            background: linear-gradient(135deg, #2e93d8, #1b74b3);
             color: white;
             border: none;
             border-radius: 10px;
@@ -240,8 +240,8 @@
         }
 
         .btn-login:hover {
-            background: linear-gradient(135deg, #0f3460, #07213d);
-            box-shadow: 0 6px 20px rgba(15, 37, 64, 0.35);
+            background: linear-gradient(135deg, #1b74b3, #155d8f);
+            box-shadow: 0 6px 20px rgba(46, 147, 216, 0.35);
             transform: translateY(-1px);
         }
 
@@ -335,7 +335,7 @@
                 <input type="password" name="password" id="id_password" placeholder="Nhập mật khẩu..."
                     autocomplete="current-password">
                 <div style="text-align: right; margin-top: 8px;">
-                    <a href="{% url 'accounts:forgot_password' %}" style="font-size: 13px; color: #1a4f8a; text-decoration: none; font-weight: 500;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Quên mật khẩu?</a>
+                    <a href="{% url 'accounts:forgot_password' %}" style="font-size: 13px; color: #2e93d8; text-decoration: none; font-weight: 500;" onmouseover="this.style.textDecoration='underline'" onmouseout="this.style.textDecoration='none'">Quên mật khẩu?</a>
                 </div>
             </div>
             <button type="submit" class="btn-login">Đăng nhập</button>
