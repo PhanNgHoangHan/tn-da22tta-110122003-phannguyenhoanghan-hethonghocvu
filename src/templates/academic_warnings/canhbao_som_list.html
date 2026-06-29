@@ -1,0 +1,208 @@
+{% extends 'base.html' %}
+{% block title %}Cảnh báo sớm học vụ{% endblock %}
+{% block page_title %}Cảnh báo sớm học vụ{% endblock %}
+
+{% block topbar_actions %}
+{% if request.user.is_giaovu or request.user.is_admin %}
+<form action="{% url 'academic_warnings:canhbao_som_gui_email_hang_loat' %}?{{ request.GET.urlencode }}" method="post"
+    onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email cảnh báo sớm học vụ đến TẤT CẢ các sinh viên có nguy cơ trong danh sách bộ lọc hiện tại?', () => form.submit())"
+    style="display:inline-block; margin: 0;">
+    {% csrf_token %}
+    <button type="submit" class="btn-send-notif">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+            <path
+                d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
+        </svg>
+        Gửi thông báo
+    </button>
+</form>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<!-- Tầng 3: Tổng quan mức nguy cơ học tập -->
+<div class="grid-4 mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+    <!-- Tổng số -->
+    <a href="?muc_nguy_co=" class="stat-card" style="text-decoration:none; border-left: 4px solid var(--primary);">
+        <div class="stat-info">
+            <div class="stat-value">{{ counts.total }}</div>
+            <div class="stat-label">Tổng số SV</div>
+        </div>
+    </a>
+
+    <!-- An toàn -->
+    <a href="?muc_nguy_co=safe&khoa={{ selected_khoa }}&nganh={{ nganh_id }}&lop={{ selected_lop }}&khoa_hoc={{ selected_khoa_hoc }}&q={{ q }}" 
+       class="stat-card {% if muc_nguy_co_filter == 'safe' %}active-filter{% endif %}" style="text-decoration:none; border-left: 4px solid var(--success); transition: all 0.2s;">
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--success);">{{ counts.safe }}</div>
+            <div class="stat-label">An toàn (GPA &ge; 2.0)</div>
+        </div>
+    </a>
+
+    <!-- Theo dõi -->
+    <a href="?muc_nguy_co=monitor&khoa={{ selected_khoa }}&nganh={{ nganh_id }}&lop={{ selected_lop }}&khoa_hoc={{ selected_khoa_hoc }}&q={{ q }}" 
+       class="stat-card {% if muc_nguy_co_filter == 'monitor' %}active-filter{% endif %}" style="text-decoration:none; border-left: 4px solid var(--info); transition: all 0.2s;">
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--info);">{{ counts.monitor }}</div>
+            <div class="stat-label">Theo dõi (GPA 1.8 - 2.0)</div>
+        </div>
+    </a>
+
+    <!-- Cảnh báo mức 1 -->
+    <a href="?muc_nguy_co=warning_1&khoa={{ selected_khoa }}&nganh={{ nganh_id }}&lop={{ selected_lop }}&khoa_hoc={{ selected_khoa_hoc }}&q={{ q }}" 
+       class="stat-card {% if muc_nguy_co_filter == 'warning_1' %}active-filter{% endif %}" style="text-decoration:none; border-left: 4px solid var(--warning); transition: all 0.2s;">
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--warning);">{{ counts.warning_1 }}</div>
+            <div class="stat-label">Cảnh báo mức 1 (GPA 1.2 - 1.8)</div>
+        </div>
+    </a>
+
+    <!-- Cảnh báo mức 2 -->
+    <a href="?muc_nguy_co=warning_2&khoa={{ selected_khoa }}&nganh={{ nganh_id }}&lop={{ selected_lop }}&khoa_hoc={{ selected_khoa_hoc }}&q={{ q }}" 
+       class="stat-card {% if muc_nguy_co_filter == 'warning_2' %}active-filter{% endif %}" style="text-decoration:none; border-left: 4px solid var(--danger); transition: all 0.2s;">
+        <div class="stat-info">
+            <div class="stat-value" style="color: var(--danger);">{{ counts.warning_2 }}</div>
+            <div class="stat-label">Cảnh báo mức 2 (GPA &lt; 1.2)</div>
+        </div>
+    </a>
+</div>
+
+<!-- Bộ lọc phân cấp -->
+<div class="card mb-3">
+    <div class="card-body" style="padding:14px 20px">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center" id="filter-form">
+            <input type="hidden" name="muc_nguy_co" value="{{ muc_nguy_co_filter }}">
+            
+            <input type="text" name="q" value="{{ q }}" placeholder="Tìm MSSV, họ tên..." class="form-control"
+                style="max-width:200px">
+
+            <select name="khoa_hoc" class="form-select" style="max-width:150px">
+                <option value="">-- Tất cả Khóa --</option>
+                {% for kh in khoa_hocs %}
+                <option value="{{ kh }}" {% if selected_khoa_hoc == kh %}selected{% endif %}>Khóa {{ kh }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả Khoa --</option>
+                {% for k in khoas %}
+                <option value="{{ k }}" {% if selected_khoa == k %}selected{% endif %}>{{ k }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="nganh" id="filter-nganh" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả Ngành --</option>
+                {% for n in nganhs %}
+                <option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="lop" id="filter-lop" class="form-select" style="max-width:180px">
+                <option value="">-- Tất cả Lớp --</option>
+                {% for l in lops %}
+                <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
+                {% endfor %}
+            </select>
+
+            <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
+        </form>
+    </div>
+</div>
+
+<div id="table-container">
+<div class="card">
+    <div class="card-header">
+        <span class="card-title">
+            Danh sách cảnh báo sớm {% if latest_hk %}- Học kỳ: {{ latest_hk }}{% endif %}
+            {% if muc_nguy_co_filter %}
+                - Mức nguy cơ: 
+                {% if muc_nguy_co_filter == 'safe' %}<span class="badge badge-success">An toàn</span>
+                {% elif muc_nguy_co_filter == 'monitor' %}<span class="badge badge-info">Theo dõi</span>
+                {% elif muc_nguy_co_filter == 'warning_1' %}<span class="badge badge-warning">Cảnh báo mức 1</span>
+                {% elif muc_nguy_co_filter == 'warning_2' %}<span class="badge badge-danger">Cảnh báo mức 2</span>
+                {% endif %}
+            {% endif %}
+        </span>
+    </div>
+    <div class="card-body" style="padding:0">
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">MSSV</th>
+                        <th>Họ tên</th>
+                        <th>Lớp</th>
+                        <th>Ngành</th>
+                        <th style="text-align: center;">GPA Tích lũy (Hệ 4/10)</th>
+                        <th style="text-align: center;">GPA Học kỳ (Hệ 4/10)</th>
+                        <th style="text-align: center;">Mức nguy cơ</th>
+                        <th>Xu hướng</th>
+                        <th>Học kỳ</th>
+                        <th style="text-align: center; width: 120px;">Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in students_data %}
+                    <tr>
+                        <td><strong>{{ item.sinh_vien.mssv }}</strong></td>
+                        <td>{{ item.sinh_vien.ho_ten }}</td>
+                        <td><strong>{{ item.sinh_vien.lop.ten_lop|default:'-' }}</strong></td>
+                        <td>{{ item.sinh_vien.nganh.ten_nganh|default:'-' }}</td>
+                        <td style="text-align: center;">
+                            <span class="fw-bold text-primary">{{ item.gpa_tl_4|floatformat:2 }}</span>
+                            <span class="text-muted" style="font-size:11px">/{{ item.gpa_tl_10|floatformat:2 }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="fw-bold">{{ item.gpa_hk_4|floatformat:2 }}</span>
+                            <span class="text-muted" style="font-size:11px">/{{ item.gpa_hk_10|floatformat:2 }}</span>
+                        </td>
+                        <td style="text-align: center;">
+                            <span class="badge badge-{{ item.mau_nguy_co }}" style="padding: 4px 10px;">
+                                {{ item.muc_nguy_co_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if item.xu_huong == 'up' %}
+                            <span class="text-success fw-semibold">Cải thiện tốt</span>
+                            {% elif item.xu_huong == 'down' %}
+                            <span class="text-danger fw-semibold">Sa sút</span>
+                            {% elif item.xu_huong == 'stable' %}
+                            <span class="text-primary fw-semibold">Ổn định</span>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td style="font-size: 12px; color: var(--text-secondary);">
+                            {{ item.hoc_ky }}
+                        </td>
+                        <td style="text-align: center;">
+                            <a href="{% url 'academic_warnings:canhbao_som_detail' item.sinh_vien.mssv %}" 
+                               class="btn btn-sm btn-primary" style="padding: 4px 10px; font-size:12px;">Xem phân tích</a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" style="text-align:center;color:#94a3b8;padding:32px">
+                            Không tìm thấy sinh viên nào phù hợp với bộ lọc hiện tại.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
+
+<style>
+.stat-card.active-filter {
+    background-color: #f8fafc;
+    box-shadow: inset 0 0 0 2px var(--primary-light);
+}
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+</style>
+
+{% endblock %}

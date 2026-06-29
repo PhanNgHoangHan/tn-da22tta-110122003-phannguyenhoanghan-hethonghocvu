@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% block title %}Chưa có hồ sơ{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block content %}
+<div class="card" style="max-width: 600px; margin: 40px auto; padding: 40px; text-align: center; border-radius: 12px; box-shadow: var(--shadow-md);">
+    <div style="width: 80px; height: 80px; background: rgba(200,168,75,0.1); border: 2px solid var(--accent); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 24px;">
+        <!-- SV / Profile Silhouette via SVG -->
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 36px; height: 36px;">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+    </div>
+    <h3 style="font-family: 'Inter', sans-serif; font-size: 22px; color: var(--primary); margin-bottom: 12px;">Tài khoản chưa liên kết hồ sơ</h3>
+    <p style="color: var(--text-secondary); font-size: 14.5px; line-height: 1.6; margin-bottom: 24px;">
+        Tài khoản của bạn chưa được liên kết với hồ sơ sinh viên trong hệ thống. Vui lòng liên hệ Phòng Giáo vụ để được hỗ trợ đồng bộ dữ liệu.
+    </p>
+    <a href="mailto:giaovu@tvu.edu.vn" class="btn btn-primary" style="padding: 10px 24px; font-weight: 500;">Liên hệ hỗ trợ</a>
+</div>
+{% endblock %}

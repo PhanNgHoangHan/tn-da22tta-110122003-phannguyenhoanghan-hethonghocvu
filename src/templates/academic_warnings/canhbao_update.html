@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block title %}Cập nhật cảnh báo{% endblock %}
+{% block page_title %}Cập nhật trạng thái cảnh báo{% endblock %}
+{% block content %}
+<div class="form-card" style="max-width:520px">
+    <div class="mb-3" style="background:#f8fafc;border-radius:8px;padding:14px">
+        <strong>{{ cb.sinh_vien.mssv }} - {{ cb.sinh_vien.ho_ten }}</strong><br>
+        <span style="font-size:13px;color:#64748b">{{ cb.get_muc_canh_bao_display }} | {{ cb.hoc_ky }}</span>
+    </div>
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group mb-3">
+            <label class="form-label">Trạng thái xử lý</label>
+            <select name="trang_thai" class="form-select">
+                <option value="chua_xu_ly" {% if cb.trang_thai == 'chua_xu_ly' %}selected{% endif %}>Chưa thông báo</option>
+                <option value="da_xu_ly" {% if cb.trang_thai == 'da_xu_ly' %}selected{% endif %}>Đã thông báo</option>
+            </select>
+        </div>
+        <div class="form-group mb-3">
+            <label class="form-label">Ghi chú xử lý</label>
+            <textarea name="ghi_chu" class="form-control" rows="4" placeholder="Nhập ghi chú...">{{ cb.ghi_chu }}</textarea>
+        </div>
+        <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn btn-primary">Lưu</button>
+            <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary">Hủy</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

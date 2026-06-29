@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% block title %}{{ sv.ho_ten }}{% endblock %}
+{% block page_title %}Hồ sơ sinh viên{% endblock %}
+{% block content %}
+
+<!-- Thông tin + Cảnh báo -->
+<div class="grid-2" style="gap:20px;margin-bottom:20px">
+    <div class="card">
+        <div class="card-header"><span class="card-title">Thông tin sinh viên</span></div>
+        <div class="card-body">
+            <table style="width:100%;font-size:13.5px">
+                <tr><td style="color:#000000;padding:6px 0;width:130px">MSSV</td><td style="color:#3399FF;font-weight:bold">{{ sv.mssv }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Họ tên</td><td style="color:#3399FF;font-weight:bold">{{ sv.ho_ten }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Giới tính</td><td style="color:#3399FF;font-weight:bold">{{ sv.get_gioi_tinh_display|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Ngày sinh</td><td style="color:#3399FF;font-weight:bold">{{ sv.ngay_sinh|date:"d/m/Y"|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Ngành</td><td style="color:#3399FF;font-weight:bold">{{ sv.nganh.ten_nganh|default:'-' }}{% if sv.khoa %} khoa {{ sv.khoa }}{% endif %}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Lớp</td><td style="color:#3399FF;font-weight:bold">{{ sv.lop.ten_lop|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Email</td><td style="color:#3399FF;font-weight:bold">{{ sv.email|default:'-' }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Cố vấn HT</td><td style="color:#3399FF;font-weight:bold">{{ sv.ten_covan }}</td></tr>
+                <tr><td style="color:#000000;padding:6px 0">Trạng thái</td>
+                    <td>{% if sv.trang_thai == 'dang_hoc' %}<span class="badge badge-success">Đang học</span>
+                    {% elif sv.trang_thai == 'canh_bao' %}<span class="badge badge-warning">Cảnh báo</span>
+                    {% elif sv.trang_thai == 'dinh_chi' %}<span class="badge badge-danger">Đình chỉ</span>
+                    {% else %}<span class="badge badge-secondary">{{ sv.get_trang_thai_display }}</span>{% endif %}</td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><span class="card-title">Tổng kết toàn khóa</span></div>
+        <div class="card-body">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                <div style="background:#eff6ff;border-radius:8px;padding:14px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#2563eb">{{ toan_khoa_dtb_10 }}</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:4px">Điểm TL hệ 10</div>
+                </div>
+                <div style="background:#f0fdf4;border-radius:8px;padding:14px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#16a34a">{{ toan_khoa_dtb_4 }}</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:4px">Điểm TL hệ 4</div>
+                </div>
+                <div style="background:#f8fafc;border-radius:8px;padding:14px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#374151">{{ tc_tl }}</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:4px">TC tích lũy</div>
+                </div>
+                <div style="background:#fef9c3;border-radius:8px;padding:14px;text-align:center">
+                    <div style="font-size:22px;font-weight:700;color:#ca8a04">{{ canh_baos|length }}</div>
+                    <div style="font-size:11px;color:#64748b;margin-top:4px">Lần cảnh báo</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cảnh báo học vụ -->
+{% if canh_baos %}
+<div class="card mb-4">
+    <div class="card-header"><span class="card-title">Cảnh báo học vụ</span></div>
+    <div class="card-body" style="padding:0">
+        <table class="data-table">
+            <thead><tr><th>Học kỳ</th><th>Mức</th><th>Lần thứ</th><th>Lý do</th><th>Trạng thái</th></tr></thead>
+            <tbody>
+            {% for cb in canh_baos %}
+            <tr>
+                <td>{{ cb.hoc_ky }}</td>
+                <td><span class="badge badge-{{ cb.mau_canh_bao }}">{{ cb.get_muc_canh_bao_display }}</span></td>
+                <td style="text-align:center">{{ cb.so_lan_canh_bao }}</td>
+                <td style="font-size:12px;max-width:300px">{{ cb.ly_do|truncatechars:80 }}</td>
+                <td>{{ cb.get_trang_thai_display }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- Kết quả học tập chia theo năm → học kỳ -->
+{% if ket_qua_theo_nam %}
+{% for nam_hoc, hk_list in ket_qua_theo_nam.items %}
+<div class="card mb-4">
+    <div class="card-header" style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));color:white;border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--accent)">
+        <span class="card-title" style="color:white;font-size:14.5px;margin:0">Năm học {{ nam_hoc }}</span>
+    </div>
+
+    <!-- Từng học kỳ -->
+    {% for hk_ten, hk_data in hk_list.items %}
+    <div style="border-bottom:1px solid #f1f5f9">
+        <!-- Header học kỳ -->
+        <div style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0">
+            <span style="font-weight:600;color:#1e293b;font-size:13.5px">{{ hk_ten }}</span>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">
+                <!-- Semester Stats Pill -->
+                <div style="background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Học kỳ:</span>
+                    <span style="border-right:1px solid #bae6fd;padding-right:8px">ĐK: <strong>{{ hk_data.tc_dang_ky }}</strong> / Đạt: <strong>{{ hk_data.tc_dat }}</strong></span>
+                    <span>GPA 10: <strong style="color:#0284c7">{{ hk_data.dtbchk }}</strong> | GPA 4: <strong style="color:#0284c7">{{ hk_data.dtbchk_4 }}</strong></span>
+                </div>
+                <!-- Cumulative Stats Pill -->
+                <div style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Tích lũy:</span>
+                    <span style="border-right:1px solid #bbf7d0;padding-right:8px">TC: <strong>{{ hk_data.tc_tl }}</strong></span>
+                    <span>ĐTB 10: <strong style="color:#16a34a">{{ hk_data.dtbctl_10 }}</strong> | ĐTB 4: <strong style="color:#16a34a">{{ hk_data.dtbctl_4 }}</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bảng điểm -->
+        <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+            <tr>
+                <th>Môn học</th>
+                <th style="text-align:center">Số TC</th>
+                <th>ĐTBQT</th>
+                <th>ĐKT</th>
+                <th>ĐTgK</th>
+                <th>Điểm chữ</th>
+                <th style="text-align:center">Hệ 4</th>
+                <th>Lần</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for kq in hk_data.ket_qua %}
+            <tr>
+                <td>{{ kq.mon_hoc.ten_mh }}</td>
+                <td style="text-align:center"><strong>{{ kq.mon_hoc.so_tc }}</strong></td>
+                <td>{{ kq.diem_qt|default:'-' }}</td>
+                <td>{{ kq.diem_thi|default:'-' }}</td>
+                <td><strong>{{ kq.diem_tk|default:'-' }}</strong></td>
+                <td>
+                    {% if kq.diem_chu %}
+                    {% if kq.diem_chu == 'A' %}
+                        <span class="badge badge-success">A - Xuất sắc</span>
+                    {% elif kq.diem_chu == 'B+' %}
+                        <span class="badge badge-info">B+ - Giỏi</span>
+                    {% elif kq.diem_chu == 'B' %}
+                        <span class="badge badge-info">B - Khá</span>
+                    {% elif kq.diem_chu == 'C+' %}
+                        <span class="badge badge-warning">C+ - TBK</span>
+                    {% elif kq.diem_chu == 'C' %}
+                        <span class="badge badge-warning">C - TB</span>
+                    {% elif kq.diem_chu == 'D+' %}
+                        <span class="badge" style="background:#fff3cd;color:#856404">D+ - TB yếu</span>
+                    {% elif kq.diem_chu == 'D' %}
+                        <span class="badge" style="background:#fff3cd;color:#856404">D - Yếu</span>
+                    {% else %}
+                        <span class="badge badge-danger">F - Kém</span>
+                    {% endif %}
+                    {% else %}-{% endif %}
+                </td>
+                <td style="text-align:center">
+                    {% if kq.diem_he4 is not None %}
+                    <strong style="color:{% if kq.diem_he4 >= 3.0 %}#16a34a{% elif kq.diem_he4 >= 2.0 %}#d97706{% elif kq.diem_he4 >= 1.0 %}#ea580c{% else %}#dc2626{% endif %}">
+                        {{ kq.diem_he4 }}
+                    </strong>
+                    {% else %}-{% endif %}
+                </td>
+                <td>{{ kq.lan_hoc }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="8" style="text-align:center;color:#94a3b8;padding:16px">Không có kết quả</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:40px;color:#94a3b8">
+        <div style="font-size:40px;margin-bottom:10px"></div>
+        <p>Chưa có kết quả học tập.</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

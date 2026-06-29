@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% block title %}Kết quả học tập{% endblock %}
+{% block page_title %}Kết quả học tập{% endblock %}
+{% block topbar_actions %}
+{% if request.user.is_giaovu or request.user.is_admin %}
+<a href="{% url 'results:import_diem' %}" class="btn-outline-tvu">Import</a>
+{% endif %}
+<a href="{% url 'results:export_diem' %}" class="btn-outline-tvu">Export</a>
+{% endblock %}
+
+{% block content %}
+{% if is_sinhvien %}
+
+<!-- Lọc học kỳ -->
+<div class="card mb-3">
+    <div class="card-body" style="padding:12px 20px">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center" id="filter-form">
+            <select name="hoc_ky" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả học kỳ --</option>
+                {% for hk in hockys %}<option value="{{ hk.pk }}" {% if hoc_ky_filter == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>{% endfor %}
+            </select>
+            <a href="{% url 'results:ketqua_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
+        </form>
+    </div>
+</div>
+<div id="table-container">
+
+<!-- Thang điểm -->
+<div class="card mb-3" style="background:#f8fafc">
+    <div class="card-body" style="padding:9px 20px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">
+        <span style="font-size:12px;color:#64748b;font-weight:600;margin-right:4px">Thang điểm:</span>
+        <span class="badge badge-success">A (9.0-10)</span>
+        <span class="badge badge-info">B+ (8.0-8.9)</span>
+        <span class="badge badge-info">B (7.0-7.9)</span>
+        <span class="badge badge-warning">C+ (6.5-6.9)</span>
+        <span class="badge badge-warning">C (5.5-6.4)</span>
+        <span class="badge" style="background:#fff3cd;color:#856404">D+ (5.0-5.4)</span>
+        <span class="badge" style="background:#fff3cd;color:#856404">D (4.0-4.9)</span>
+        <span class="badge badge-danger">F (&lt;4.0)</span>
+    </div>
+</div>
+
+{% if theo_nam_sv %}
+
+<!-- Tổng kết toàn khóa -->
+{% if toan_khoa %}
+{% if not hoc_ky_filter %}
+<div class="card mb-4" style="border:2px solid #2563eb">
+    <div style="background:#2563eb;border-radius:10px 10px 0 0;padding:11px 20px">
+        <span style="color:white;font-weight:700;font-size:14px">Tổng kết toàn khóa học</span>
+    </div>
+    <div class="card-body" style="padding:14px 20px">
+        <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:center">
+            <div style="text-align:center;min-width:90px">
+                <div style="font-size:24px;font-weight:700;color:#2563eb">{{ toan_khoa.dtb_10 }}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">Điểm TL hệ 10</div>
+            </div>
+            <div style="text-align:center;min-width:90px">
+                <div style="font-size:24px;font-weight:700;color:#16a34a">{{ toan_khoa.dtb_4 }}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">Điểm TL hệ 4</div>
+            </div>
+            {% if toan_khoa.tc_tl %}
+            <div style="text-align:center;min-width:90px">
+                <div style="font-size:24px;font-weight:700;color:#374151">{{ toan_khoa.tc_tl }}</div>
+                <div style="font-size:11px;color:#64748b;margin-top:2px">TC tích lũy</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- Từng năm học (giảm dần) -->
+{% for nam_hoc, hk_dict in theo_nam_sv.items %}
+<div class="card mb-4">
+    <!-- Header năm -->
+    <div
+        style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));border-radius:12px 12px 0 0;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--accent)">
+        <span style="color:white;font-weight:700;font-size:14.5px">Năm học {{ nam_hoc }}</span>
+    </div>
+
+    <!-- Từng học kỳ -->
+    {% for hk_ten, data in hk_dict.items %}
+    {% if hk_ten != 'tong_ket' %}
+    <div style="border-bottom:1px solid #f1f5f9">
+        <!-- Header HK + ĐTBCHK -->
+        <div
+            style="padding:10px 20px;background:#f8fafc;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:1px solid #e2e8f0">
+            <span style="font-weight:600;color:#1e293b;font-size:13.5px">{{ hk_ten }}</span>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px">
+                <!-- Semester Stats Pill -->
+                <div style="background:#e0f2fe;color:#0369a1;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Học kỳ:</span>
+                    <span style="border-right:1px solid #bae6fd;padding-right:8px">ĐK: <strong>{{ data.tc_dang_ky }}</strong> / Đạt: <strong>{{ data.tc_dat }}</strong></span>
+                    <span>GPA 10: <strong style="color:#0284c7">{{ data.dtbchk_10 }}</strong> | GPA 4: <strong style="color:#0284c7">{{ data.dtbchk_4 }}</strong></span>
+                </div>
+                <!-- Cumulative Stats Pill -->
+                <div style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:20px;font-weight:500;display:inline-flex;gap:8px;align-items:center">
+                    <span>Tích lũy:</span>
+                    <span style="border-right:1px solid #bbf7d0;padding-right:8px">TC: <strong>{{ data.tc_tl }}</strong></span>
+                    <span>ĐTB 10: <strong style="color:#16a34a">{{ data.dtbctl_10 }}</strong> | ĐTB 4: <strong style="color:#16a34a">{{ data.dtbctl_4 }}</strong></span>
+                </div>
+            </div>
+        </div>
+        <!-- Bảng điểm từng môn -->
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Môn học</th>
+                        <th style="text-align:center">TC</th>
+                        <th>ĐTBQT</th>
+                        <th>ĐKT</th>
+                        <th>ĐTgK</th>
+                        <th>Điểm chữ</th>
+                        <th style="text-align:center">Hệ 4</th>
+                        <th>Lần</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kq in data.ket_qua %}
+                    <tr>
+                        <td>{{ kq.mon_hoc.ten_mh }}</td>
+                        <td style="text-align:center"><strong>{{ kq.mon_hoc.so_tc }}</strong></td>
+                        <td>{{ kq.diem_qt|default:'-' }}</td>
+                        <td>{{ kq.diem_thi|default:'-' }}</td>
+                        <td><strong>{{ kq.diem_tk|default:'-' }}</strong></td>
+                        <td>
+                            {% if kq.diem_chu %}
+                            {% if kq.diem_chu == 'A' %}<span class="badge badge-success">A - Xuất sắc</span>
+                            {% elif kq.diem_chu == 'B+' %}<span class="badge badge-info">B+ - Giỏi</span>
+                            {% elif kq.diem_chu == 'B' %}<span class="badge badge-info">B - Khá</span>
+                            {% elif kq.diem_chu == 'C+' %}<span class="badge badge-warning">C+ - TBK</span>
+                            {% elif kq.diem_chu == 'C' %}<span class="badge badge-warning">C - TB</span>
+                            {% elif kq.diem_chu == 'D+' %}<span class="badge"
+                                style="background:#fff3cd;color:#856404">D+ - TB yếu</span>
+                            {% elif kq.diem_chu == 'D' %}<span class="badge" style="background:#fff3cd;color:#856404">D
+                                - Yếu</span>
+                            {% else %}<span class="badge badge-danger">F - Kém</span>{% endif %}
+                            {% else %}-{% endif %}
+                        </td>
+                        <td style="text-align:center">
+                            {% if kq.diem_he4 is not None %}
+                            <strong
+                                style="color:{% if kq.diem_he4 >= 3.0 %}#16a34a{% elif kq.diem_he4 >= 2.0 %}#d97706{% elif kq.diem_he4 >= 1.0 %}#ea580c{% else %}#dc2626{% endif %}">
+                                {{ kq.diem_he4 }}
+                            </strong>
+                            {% else %}-{% endif %}
+                        </td>
+                        <td>{{ kq.lan_hoc }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" style="text-align:center;color:#94a3b8;padding:16px">Không có kết quả</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:40px;color:#94a3b8">
+        <div style="font-size:40px;margin-bottom:10px"></div>
+        <p>Chưa có kết quả học tập.</p>
+    </div>
+</div>
+{% endif %}
+</div>
+{% else %}
+
+<!-- Lọc cố vấn/giáo vụ -->
+<div class="card mb-3">
+    <div class="card-body" style="padding:12px 20px">
+        <form method="get" class="d-flex gap-2 flex-wrap align-items-center" id="filter-form">
+            <select name="hoc_ky" class="form-select" style="max-width:180px">
+                <option value="">-- Tất cả học kỳ --</option>
+                {% for hk in hockys %}<option value="{{ hk.pk }}" {% if hoc_ky_filter == hk.pk|stringformat:'s' %}selected{% endif %}>{{ hk }}</option>{% endfor %}
+            </select>
+
+            <select name="he4" class="form-select" style="max-width:160px">
+                <option value="">-- Lọc điểm hệ 4 ≥ --</option>
+                <option value="3.5" {% if he4_filter == '3.5' %}selected{% endif %}>≥ 3.5 (Giỏi)</option>
+                <option value="3.0" {% if he4_filter == '3.0' %}selected{% endif %}>≥ 3.0 (Khá)</option>
+                <option value="2.5" {% if he4_filter == '2.5' %}selected{% endif %}>≥ 2.5</option>
+                <option value="2.0" {% if he4_filter == '2.0' %}selected{% endif %}>≥ 2.0 (TB)</option>
+                <option value="1.0" {% if he4_filter == '1.0' %}selected{% endif %}>≥ 1.0 (Yếu)</option>
+                <option value="0" {% if he4_filter == '0' %}selected{% endif %}>≥ 0 (Tất cả)</option>
+            </select>
+
+            {% if not request.user.is_sinhvien %}
+            <select name="khoa_hoc" class="form-select" style="max-width:150px">
+                <option value="">-- Tất cả Khóa --</option>
+                {% for kh in khoa_hocs %}
+                <option value="{{ kh }}" {% if selected_khoa_hoc == kh %}selected{% endif %}>Khóa {{ kh }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
+            {% if not request.user.is_sinhvien %}
+            <!-- Bộ lọc phân cấp thông minh dành cho Giáo vụ / Admin / Cố vấn -->
+            <select name="khoa" id="filter-khoa" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả Khoa --</option>
+                {% for k in khoas %}
+                <option value="{{ k }}" {% if selected_khoa == k %}selected{% endif %}>{{ k }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="nganh" id="filter-nganh" class="form-select" style="max-width:200px">
+                <option value="">-- Tất cả Ngành --</option>
+                {% for n in nganhs %}
+                <option value="{{ n.pk }}" {% if nganh_id == n.pk|stringformat:'s' %}selected{% endif %}>{{ n.ten_nganh }}</option>
+                {% endfor %}
+            </select>
+
+            <select name="lop" id="filter-lop" class="form-select" style="max-width:180px">
+                <option value="">-- Tất cả Lớp --</option>
+                {% for l in lops %}
+                <option value="{{ l.pk }}" {% if selected_lop == l.pk|stringformat:'s' %}selected{% endif %}>{{ l.ten_lop }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+
+            <a href="{% url 'results:ketqua_list' %}" class="btn btn-secondary btn-sm">✕ Xóa lọc</a>
+        </form>
+    </div>
+</div>
+
+<div id="table-container">
+{% if theo_lop %}
+{% for ten_lop, theo_nam in theo_lop.items %}
+<div class="card mb-4">
+    <div style="background:linear-gradient(135deg, var(--primary), var(--primary-dark));border-radius:12px 12px 0 0;padding:12px 20px;border-bottom:2px solid var(--accent)">
+        <span style="color:white;font-weight:700;font-size:15px">Lớp {{ ten_lop }}</span>
+    </div>
+    {% for nam_hoc, theo_hk in theo_nam.items %}
+    <div style="border-bottom:2px solid #e2e8f0">
+        <div style="background:var(--primary);padding:9px 20px">
+            <span style="color:white;font-weight:600;font-size:13.5px">Năm học {{ nam_hoc }}</span>
+        </div>
+        {% for hk_ten, rows in theo_hk.items %}
+        <div style="border-bottom:1px solid #f1f5f9">
+            <div style="padding:8px 20px;background:#f8fafc">
+                <span style="font-weight:600;color:#374151;font-size:13px">{{ hk_ten }}</span>
+                <span style="font-size:12px;color:#94a3b8;margin-left:12px">{{ rows|length }} sinh viên</span>
+            </div>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>MSSV</th>
+                            <th>Họ tên</th>
+                            <th style="text-align:center">Số môn</th>
+                            <th style="text-align:center">TC đăng ký</th>
+                            <th style="text-align:center">TC đạt</th>
+                            <th style="text-align:center">ĐTBCHK hệ 10</th>
+                            <th style="text-align:center">ĐTBCHK hệ 4</th>
+                            <th>Chi tiết</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                        <tr>
+                            <td><strong>{{ row.sv.mssv }}</strong></td>
+                            <td>{{ row.sv.ho_ten }}</td>
+                            <td style="text-align:center">{{ row.so_mon }}</td>
+                            <td style="text-align:center">{{ row.tc_dang_ky }}</td>
+                            <td style="text-align:center"><strong style="color:#16a34a">{{ row.tc_dat }}</strong></td>
+                            <td style="text-align:center">
+                                <strong
+                                    style="color:{% if row.dtbchk_10 >= 7.0 %}#16a34a{% elif row.dtbchk_10 >= 5.0 %}#d97706{% else %}#dc2626{% endif %}">
+                                    {{ row.dtbchk_10 }}
+                                </strong>
+                            </td>
+                            <td style="text-align:center">
+                                <strong
+                                    style="color:{% if row.dtbchk_4 >= 3.0 %}#16a34a{% elif row.dtbchk_4 >= 2.0 %}#d97706{% elif row.dtbchk_4 >= 1.0 %}#ea580c{% else %}#dc2626{% endif %}">
+                                    {{ row.dtbchk_4 }}
+                                </strong>
+                            </td>
+                            <td><a href="{% url 'students:sinhvien_detail' row.sv.pk %}"
+                                    class="btn btn-sm btn-secondary">Xem</a></td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="8" style="text-align:center;color:#94a3b8;padding:16px">Không có dữ liệu</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% endfor %}
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:48px;color:#94a3b8">
+        <div style="font-size:48px;margin-bottom:12px"></div>
+        <p>Chưa có kết quả học tập nào.</p>
+        {% if request.user.is_giaovu or request.user.is_admin %}
+        <a href="{% url 'results:import_diem' %}" class="btn btn-primary">Import điểm đầu tiên</a>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+</div>
+{% endif %}
+{% endblock %}
+

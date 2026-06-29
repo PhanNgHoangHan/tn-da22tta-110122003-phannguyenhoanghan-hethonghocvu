@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% block title %}Hồ sơ cá nhân{% endblock %}
+{% block page_title %}Hồ sơ cá nhân{% endblock %}
+{% block content %}
+<div class="form-card" style="max-width:500px">
+    <div style="text-align:center;margin-bottom:24px">
+        <div style="width:72px;height:72px;background:#2563eb;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:white;margin:0 auto 12px">
+            {{ user.full_name|first|upper|default:user.username|first|upper }}
+        </div>
+        <h3 style="margin:0 0 4px">{{ user.full_name|default:user.username }}</h3>
+        <span class="badge badge-info">{{ user.get_role_display }}</span>
+    </div>
+    {% if user.role == 'sinhvien' and user.sinh_vien %}
+    <table style="width:100%;font-size:14px">
+        <tr><td style="padding:8px 0;color:#000000;width:140px">MSSV</td><td><strong>{{ user.sinh_vien.mssv }}</strong></td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Họ tên</td><td>{{ user.sinh_vien.ho_ten }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Giới tính</td><td>{{ user.sinh_vien.get_gioi_tinh_display|default:'-' }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Ngày sinh</td><td>{{ user.sinh_vien.ngay_sinh|date:"d/m/Y"|default:'-' }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Ngành</td><td>{{ user.sinh_vien.nganh.ten_nganh|default:'-' }}{% if user.sinh_vien.khoa %} khoa {{ user.sinh_vien.khoa }}{% endif %}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Lớp</td><td>{{ user.sinh_vien.lop.ten_lop|default:'-' }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Cố vấn HT</td><td>{{ user.sinh_vien.ten_covan }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Trạng thái</td><td>{{ user.sinh_vien.get_trang_thai_display }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Email</td><td>{{ user.email|default:'-' }}</td></tr>
+    </table>
+    {% else %}
+    <table style="width:100%;font-size:14px">
+        <tr><td style="padding:8px 0;color:#000000;width:140px">Tên đăng nhập</td><td><strong>{{ user.username }}</strong></td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Email</td><td>{{ user.email|default:'-' }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Số điện thoại</td><td>{{ user.phone|default:'-' }}</td></tr>
+        <tr><td style="padding:8px 0;color:#000000">Vai trò</td><td>{{ user.get_role_display }}</td></tr>
+    </table>
+    {% endif %}
+    <div style="margin-top:24px;text-align:center">
+        <a href="{% url 'accounts:change_password' %}" class="btn btn-primary" style="width:100%;justify-content:center">Đổi mật khẩu</a>
+    </div>
+</div>
+{% endblock %}

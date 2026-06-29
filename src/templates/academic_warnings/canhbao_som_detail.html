@@ -1,0 +1,535 @@
+{% extends 'base.html' %}
+{% load l10n %}
+{% block title %}Chi tiết cảnh báo sớm - {{ sv.ho_ten }}{% endblock %}
+{% block page_title %}Phân tích cảnh báo sớm học vụ{% endblock %}
+
+
+{% block topbar_actions %}
+<div class="d-flex gap-2">
+    {% if request.user.is_giaovu or request.user.is_admin %}
+    <form action="{% url 'academic_warnings:canhbao_som_gui_email' sv.mssv %}" method="post" style="margin: 0;"
+        onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email cảnh báo sớm học vụ cho sinh viên này?', () => form.submit())">
+        {% csrf_token %}
+        <button type="submit" class="btn-send-notif">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+                <path
+                    d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
+            </svg>
+            Gửi thông báo
+        </button>
+    </form>
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
+    {% elif request.user.is_covan %}
+    <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
+    {% else %}
+    <a href="{% url 'dashboard:index' %}" class="btn btn-secondary btn-sm">Quay lại Dashboard</a>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- THÔNG TIN SINH VIÊN -->
+<div class="card mb-4">
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-4 align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-3">
+                <div class="avatar" style="width: 50px; height: 50px; background: linear-gradient(135deg, var(--primary-light), var(--primary-dark)); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: white; font-size: 20px;">
+                    {{ sv.ho_ten|first|upper }}
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 18px; color: var(--text-primary);">{{ sv.ho_ten }}</h3>
+                    <div class="text-muted" style="font-size: 13px;">MSSV: <strong>{{ sv.mssv }}</strong> &bull; Lớp: <strong>{{ sv.lop.ten_lop|default:'Chưa xếp lớp' }}</strong> &bull; Ngành: <strong>{{ sv.nganh.ten_nganh|default:'Chưa xếp ngành' }}</strong></div>
+                </div>
+            </div>
+            
+            <!-- Học kỳ lọc dữ liệu phân tích -->
+            <form method="get" class="d-flex align-items-center gap-2">
+                <label for="select-hk" class="form-label" style="margin: 0; white-space: nowrap;">Học kỳ phân tích:</label>
+                <select name="hoc_ky" id="select-hk" class="form-select" style="max-width: 200px;" onchange="this.form.submit()">
+                    {% for hk in hockys %}
+                    <option value="{{ hk.pk }}" {% if selected_hk.pk == hk.pk %}selected{% endif %}>{{ hk }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="grid-2 mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(450px, 1fr)); gap: 24px;">
+    <!-- TẦNG 3: HIỂN THỊ MỨC NGUY CƠ -->
+    <div class="card" style="border-top: 5px solid {% if analysis.mau_nguy_co == 'success' %}var(--success){% elif analysis.mau_nguy_co == 'info' %}var(--info){% elif analysis.mau_nguy_co == 'warning' %}var(--warning){% else %}var(--danger){% endif %};">
+        <div class="card-header"><span class="card-title">Phân loại mức độ nguy cơ</span></div>
+        <div class="card-body text-center" style="padding: 30px 22px;">
+            <span class="badge badge-{{ analysis.mau_nguy_co }}" style="font-size: 16px; padding: 6px 16px; border-radius: 30px; margin-bottom: 20px;">
+                {{ analysis.muc_nguy_co_display }}
+            </span>
+            
+            <p class="lead fw-semibold mb-3" style="font-size: 15px; color: var(--text-primary);">
+                {{ analysis.ly_do }}
+            </p>
+            
+            <!-- GPA Gauge (Visual) -->
+            <div style="margin: 20px 0;">
+                <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-secondary);">ĐTB tích lũy hiện tại (GPA)</div>
+                <div style="font-size: 48px; font-weight: 800; color: {% if analysis.mau_nguy_co == 'success' %}var(--success){% elif analysis.mau_nguy_co == 'info' %}var(--info){% elif analysis.mau_nguy_co == 'warning' %}var(--warning){% else %}var(--danger){% endif %};">
+                    {{ analysis.gpa_tl_4|floatformat:2 }}<span style="font-size: 18px; font-weight: 500; color: var(--text-muted);">/4.00</span>
+                </div>
+                <div class="text-muted" style="font-size: 13px;">Hệ 10: <strong>{{ analysis.gpa_tl_10|floatformat:2 }}</strong></div>
+            </div>
+
+            <!-- Tầng 1: Tóm tắt thông tin đầu vào học kỳ này -->
+            <hr style="border: 0; border-top: 1px solid var(--border-light); margin: 20px 0;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; text-align: left;">
+                <div>
+                    <div class="text-muted">GPA Học kỳ này:</div>
+                    <strong>{{ analysis.gpa_hk_4|floatformat:2 }} / 4.00</strong> (Hệ 10: {{ analysis.gpa_hk_10|floatformat:2 }})
+                </div>
+                <div>
+                    <div class="text-muted">Tín chỉ học kỳ này:</div>
+                    Đã đạt: <strong>{{ analysis.tc_hk_pass }}</strong> / Đăng ký: <strong>{{ analysis.tc_hk_reg }}</strong> TC
+                </div>
+                <div>
+                    <div class="text-muted">Tổng tín chỉ tích lũy:</div>
+                    Đã đạt: <strong>{{ analysis.tc_tl_pass }}</strong> / Đã học: <strong>{{ analysis.tc_tl_reg }}</strong> TC
+                </div>
+                <div>
+                    <div class="text-muted">Xu hướng ĐTB tích lũy:</div>
+                    <strong class="{% if analysis.xu_huong == 'up' %}text-success{% elif analysis.xu_huong == 'down' %}text-danger{% elif analysis.xu_huong == 'stable' %}text-primary{% else %}text-muted{% endif %}">{{ analysis.xu_huong_display }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TẦNG 2: DỰ BÁO XU HƯỚNG VÀ LỊCH SỬ GPA -->
+    <div class="card">
+        <div class="card-header"><span class="card-title">Xu hướng ĐTB Tích lũy qua các kỳ học</span></div>
+        <div class="card-body">
+            <div style="height: 250px; position: relative;">
+                <canvas id="earlyGpaChart"></canvas>
+            </div>
+            <div class="text-center text-muted" style="font-size: 12px; margin-top: 12px;">
+                Cột màu biểu thị mức độ nguy cơ: 
+                <span style="color:var(--success); font-weight:600;">■ An toàn</span> | 
+                <span style="color:var(--info); font-weight:600;">■ Theo dõi</span> | 
+                <span style="color:var(--warning); font-weight:600;">■ Mức 1</span> | 
+                <span style="color:var(--danger); font-weight:600;">■ Mức 2</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TẦNG 4: PHÂN TÍCH ĐIỂM YẾU & MÔ PHỎNG NÂNG ĐIỂM -->
+<div class="card mb-4">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <span class="card-title">Phân tích điểm yếu và Mô phỏng cải thiện GPA</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="select-analysis-scope" style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0; white-space: nowrap;">Phạm vi phân tích:</label>
+            <select id="select-analysis-scope" class="form-select form-select-sm" style="max-width: 280px; font-size: 13px; padding: 4px 8px;">
+                <option value="current">Học kỳ hiện tại</option>
+                <option value="improve">Các môn cần cải thiện</option>
+                <option value="debt">Các môn còn nợ</option>
+            </select>
+        </div>
+    </div>
+    <div class="card-body">
+        <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 20px;">
+            Hệ thống phân tích các học phần điểm thấp (F, D, D+). Hãy <strong>tích chọn vào hộp kiểm</strong> ở đầu mỗi môn học để mô phỏng sự cải thiện của GPA tích lũy sau khi học lại:
+        </p>
+        
+        <div class="table-responsive">
+            <table class="data-table" id="weak-subjects-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50px; text-align: center;">Chọn</th>
+                        <th style="text-align: center; width: 110px;">Điểm mô phỏng</th>
+                        <th>Mã học phần</th>
+                        <th>Tên học phần</th>
+                        <th style="text-align: center;">Số tín chỉ</th>
+                        <th style="text-align: center;">Điểm chữ hiện tại</th>
+                        <th style="text-align: center;">Điểm hệ 4 hiện tại</th>
+                        <th style="text-align: center;">Học kỳ ghi nhận</th>
+                        <th style="text-align: center; color: var(--success);">Khả năng tăng GPA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for w in analysis.diem_yeu %}
+                    <tr class="subject-row" data-so-tc="{{ w.so_tc }}" data-diem-he4="{{ w.diem_he4 }}" data-grade="{{ w.diem_chu }}" data-is-current-hk="{% if w.is_current_hk %}true{% else %}false{% endif %}">
+                        <td style="text-align: center;">
+                            <input type="checkbox" class="improve-chk" style="width: 16px; height: 16px; cursor: pointer;">
+                        </td>
+                        <td style="text-align: center;">
+                            <select class="improve-grade-select form-select form-select-sm" style="padding: 2px 6px; font-size: 12px; width: auto; min-width: 85px; display: inline-block;">
+                                <option value="4.0" data-grade-name="A">A (4.0)</option>
+                                {% if w.diem_he4 < 3.5 %}
+                                <option value="3.5" data-grade-name="B+">B+ (3.5)</option>
+                                {% endif %}
+                                {% if w.diem_he4 < 3.0 %}
+                                <option value="3.0" data-grade-name="B">B (3.0)</option>
+                                {% endif %}
+                                {% if w.diem_he4 < 2.5 %}
+                                <option value="2.5" data-grade-name="C+">C+ (2.5)</option>
+                                {% endif %}
+                                {% if w.diem_he4 < 2.0 %}
+                                <option value="2.0" data-grade-name="C">C (2.0)</option>
+                                {% endif %}
+                                {% if w.diem_he4 < 1.5 %}
+                                <option value="1.5" data-grade-name="D+">D+ (1.5)</option>
+                                {% endif %}
+                                {% if w.diem_he4 < 1.0 %}
+                                <option value="1.0" data-grade-name="D">D (1.0)</option>
+                                {% endif %}
+                            </select>
+                        </td>
+                        <td><code>{{ w.ma_mh }}</code></td>
+                        <td>{{ w.ten_mh }}</td>
+                        <td style="text-align: center;"><strong>{{ w.so_tc }}</strong></td>
+                        <td style="text-align: center;">
+                            <span class="badge {% if w.diem_chu == 'F' %}badge-danger{% else %}badge-warning{% endif %}">
+                                {{ w.diem_chu }}
+                            </span>
+                        </td>
+                        <td style="text-align: center;">{{ w.diem_he4|floatformat:2 }}</td>
+                        <td style="text-align: center; font-size:12px; color:var(--text-secondary)">{{ w.hoc_ky }}</td>
+                        <td style="text-align: center; color: var(--success); font-weight: 600;" class="row-improvement">
+                            +{{ w.improvement|floatformat:3 }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" style="text-align: center; color: var(--success); padding: 30px;">
+                            Tuyệt vời! Sinh viên không có học phần điểm yếu trong học kỳ này.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if analysis.diem_yeu %}
+        <!-- BẢNG MÔ PHỎNG REAL-TIME GPA -->
+        <div style="background-color: var(--bg-light); border-radius: var(--radius-md); padding: 20px; margin-top: 20px; border: 1px solid var(--border); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 16px;">
+            <div>
+                <h4 style="margin: 0; color: var(--text-primary);">Bảng tính mô phỏng cải thiện GPA</h4>
+                <div style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">Tính toán theo thời gian thực khi chọn học lại các môn ở trên.</div>
+            </div>
+            <div style="display: flex; gap: 32px; align-items: center;">
+                <div style="text-align: center;">
+                    <div style="font-size: 11px; text-transform: uppercase; color: var(--text-secondary);">GPA hiện tại</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--text-primary);">{{ analysis.gpa_tl_4|floatformat:2 }}</div>
+                </div>
+                <div style="font-size: 24px; color: var(--text-muted);">&rarr;</div>
+                <div style="text-align: center;">
+                    <div style="font-size: 11px; text-transform: uppercase; color: var(--success); font-weight:600;">GPA sau mô phỏng</div>
+                    <div id="simulated-gpa" style="font-size: 28px; font-weight: 800; color: var(--success);">{{ analysis.gpa_tl_4|floatformat:2 }}</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 11px; text-transform: uppercase; color: var(--success); font-weight:600;">Mức nguy cơ mới</div>
+                    <div id="simulated-risk" class="badge badge-{{ analysis.mau_nguy_co }}" style="font-size: 12px; margin-top: 6px;">{{ analysis.muc_nguy_co_display }}</div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- TẦNG 5: KHUYẾN NGHỊ VÀ GIẢI PHÁP -->
+<div class="grid-2 mb-4" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 24px;">
+    <!-- Khuyến nghị hành động -->
+    <div class="card" style="border-left: 4px solid var(--accent);">
+        <div class="card-header"><span class="card-title">Khuyến nghị giải pháp cho học kỳ tiếp theo</span></div>
+        <div class="card-body" style="padding: 24px;">
+            <ul style="padding-left: 20px; margin: 0; display: flex; flex-direction: column; gap: 12px; font-size: 13.5px;">
+                {% for gy in analysis.goi_y %}
+                <li>{{ gy|safe }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- Thông tin cố vấn học tập & Lịch sử cảnh báo -->
+    <div class="card">
+        <div class="card-header"><span class="card-title">Lịch sử thông báo đã gửi cho Sinh viên</span></div>
+        <div class="card-body" style="padding: 0;">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Học kỳ báo cáo</th>
+                        <th>Ngày gửi thông báo</th>
+                        <th>Mức cảnh báo gửi</th>
+                        <th>GPA thời điểm đó</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ls in lich_su_gui %}
+                    <tr>
+                        <td><strong>Học kỳ {{ ls.hoc_ky }}</strong></td>
+                        <td style="font-size: 12px;">{{ ls.ngay_gui|date:"d/m/Y H:i" }}</td>
+                        <td><span class="badge badge-info">{{ ls.muc_nguy_co }}</span></td>
+                        <td><strong>{{ ls.gpa_he4|floatformat:2 }}</strong></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                            Chưa gửi thông báo cảnh báo sớm nào cho sinh viên này qua email.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% block extra_js %}
+<script>
+// Dữ liệu biểu đồ lịch sử GPA
+const historyLabels = [];
+const historyGpaHk = [];
+const historyGpaTl = [];
+const riskColors = [];
+
+const colorMap = {
+    'safe': '#16a34a',      // success green
+    'monitor': '#0891b2',   // info teal
+    'warning_1': '#d97706',  // warning amber
+    'warning_2': '#dc2626'   // danger red
+};
+
+{% for h in history_data %}
+historyLabels.push("{{ h.hoc_ky }}");
+historyGpaHk.push({{ h.gpa_hk_4|unlocalize }});
+historyGpaTl.push({{ h.gpa_tl_4|unlocalize }});
+riskColors.push(colorMap["{{ h.muc_nguy_co }}"] || '#64748b');
+{% endfor %}
+
+// Vẽ biểu đồ xu hướng GPA học kỳ & tích lũy
+new Chart(document.getElementById('earlyGpaChart'), {
+    type: 'line',
+    data: {
+        labels: historyLabels,
+        datasets: [
+            {
+                label: 'ĐTB Tích lũy (GPA)',
+                data: historyGpaTl,
+                borderColor: '#2e93d8',
+                backgroundColor: 'rgba(46,147,216,0.05)',
+                tension: 0.15,
+                fill: true,
+                pointBackgroundColor: riskColors,
+                pointBorderColor: '#ffffff',
+                pointBorderWidth: 2,
+                pointRadius: 6,
+                pointHoverRadius: 8,
+                borderWidth: 3
+            },
+            {
+                label: 'ĐTB Học kỳ',
+                data: historyGpaHk,
+                borderColor: '#64748b',
+                borderDash: [5, 5],
+                backgroundColor: 'transparent',
+                tension: 0.15,
+                fill: false,
+                pointRadius: 4,
+                borderWidth: 1.5
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: true,
+                labels: { font: { family: 'Inter', size: 12 } }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return context.dataset.label + ': ' + context.parsed.y.toFixed(2);
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                min: 0,
+                max: 4.0,
+                grid: { color: '#f1f5f9' },
+                ticks: { font: { family: 'Inter', size: 11 } }
+            },
+            x: {
+                grid: { display: false },
+                ticks: { font: { family: 'Inter', size: 11 } }
+            }
+        }
+    }
+});
+
+// Logic mô phỏng cải thiện điểm học tập (Real-time GPA Simulation)
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelect = document.getElementById('select-analysis-scope');
+    const tableBody = document.querySelector('#weak-subjects-table tbody');
+
+    function applyFilter() {
+        if (!filterSelect || !tableBody) return;
+        const val = filterSelect.value;
+        let visibleCount = 0;
+        
+        const rows = tableBody.querySelectorAll('.subject-row');
+        rows.forEach(row => {
+            const isCurrent = row.getAttribute('data-is-current-hk') === 'true';
+            const grade = row.getAttribute('data-grade');
+            
+            let show = false;
+            if (val === 'current') {
+                show = isCurrent;
+            } else if (val === 'improve') {
+                show = (grade === 'D' || grade === 'D+');
+            } else if (val === 'debt') {
+                show = (grade === 'F');
+            }
+            
+            if (show) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+        
+        // Handle empty table state
+        let emptyRow = tableBody.querySelector('.empty-filter-row');
+        if (visibleCount === 0) {
+            if (!emptyRow) {
+                emptyRow = document.createElement('tr');
+                emptyRow.className = 'empty-filter-row';
+                const td = document.createElement('td');
+                td.colSpan = 9;
+                td.style.textAlign = 'center';
+                td.style.padding = '30px';
+                td.style.color = 'var(--text-muted)';
+                emptyRow.appendChild(td);
+                tableBody.appendChild(emptyRow);
+            }
+            
+            if (val === 'current') {
+                emptyRow.querySelector('td').textContent = 'Tuyệt vời! Sinh viên không có học phần điểm yếu trong học kỳ này.';
+            } else if (val === 'improve') {
+                emptyRow.querySelector('td').textContent = 'Sinh viên không có học phần cần cải thiện (D, D+) nào.';
+            } else if (val === 'debt') {
+                emptyRow.querySelector('td').textContent = 'Tuyệt vời! Sinh viên không còn môn nợ (F) nào.';
+            }
+            emptyRow.style.display = '';
+        } else {
+            if (emptyRow) {
+                emptyRow.style.display = 'none';
+            }
+        }
+    }
+
+    if (filterSelect) {
+        filterSelect.addEventListener('change', applyFilter);
+        applyFilter();
+    }
+
+    const chks = document.querySelectorAll('.improve-chk');
+    const selects = document.querySelectorAll('.improve-grade-select');
+    const simulatedGpaEl = document.getElementById('simulated-gpa');
+    const simulatedRiskEl = document.getElementById('simulated-risk');
+    
+    if (chks.length === 0) return;
+
+    // Các thông số hiện tại
+    const currentGpa = parseFloat("{{ analysis.gpa_tl_4|unlocalize }}");
+    const totalCreditsGpa = parseInt("{{ analysis.tc_tl_reg|unlocalize }}"); // tổng tín chỉ tính GPA
+
+    function updateRowImprovement(row) {
+        const soTc = parseInt(row.getAttribute('data-so-tc'));
+        const diemHe4 = parseFloat(row.getAttribute('data-diem-he4'));
+        const selectEl = row.querySelector('.improve-grade-select');
+        const targetGrade = parseFloat(selectEl.value);
+        
+        const rowImp = totalCreditsGpa > 0 ? ((targetGrade - diemHe4) * soTc / totalCreditsGpa) : 0.0;
+        const impEl = row.querySelector('.row-improvement');
+        if (impEl) {
+            impEl.textContent = '+' + rowImp.toFixed(3);
+        }
+    }
+
+    function updateSimulation() {
+        let totalOriginalPoints = currentGpa * totalCreditsGpa;
+        let pointsIncrease = 0.0;
+        
+        chks.forEach(chk => {
+            const row = chk.closest('.subject-row');
+            updateRowImprovement(row);
+            
+            if (chk.checked) {
+                const soTc = parseInt(row.getAttribute('data-so-tc'));
+                const diemHe4 = parseFloat(row.getAttribute('data-diem-he4'));
+                const selectEl = row.querySelector('.improve-grade-select');
+                const targetGrade = parseFloat(selectEl.value);
+                
+                pointsIncrease += (targetGrade - diemHe4) * soTc;
+            }
+        });
+
+        // Tính GPA mới mô phỏng
+        let simulatedGpa = currentGpa;
+        if (totalCreditsGpa > 0) {
+            simulatedGpa = (totalOriginalPoints + pointsIncrease) / totalCreditsGpa;
+        }
+        
+        // Cập nhật giao diện
+        simulatedGpaEl.textContent = simulatedGpa.toFixed(2);
+        
+        // Cập nhật mức cảnh báo mô phỏng dựa trên GPA mới
+        let newRisk = 'safe';
+        let newRiskDisplay = 'An toàn';
+        let badgeClass = 'badge-success';
+        
+        if (simulatedGpa < 1.2) {
+            newRisk = 'warning_2';
+            newRiskDisplay = 'Cảnh báo mức 2';
+            badgeClass = 'badge-danger';
+        } else if (simulatedGpa < 1.8) {
+            newRisk = 'warning_1';
+            newRiskDisplay = 'Cảnh báo mức 1';
+            badgeClass = 'badge-warning';
+        } else if (simulatedGpa < 2.0) {
+            newRisk = 'monitor';
+            newRiskDisplay = 'Theo dõi';
+            badgeClass = 'badge-info';
+        } else {
+            newRisk = 'safe';
+            newRiskDisplay = 'An toàn';
+            badgeClass = 'badge-success';
+        }
+
+        simulatedRiskEl.textContent = newRiskDisplay;
+        simulatedRiskEl.className = 'badge ' + badgeClass;
+    }
+
+    // Initialize row improvements on load
+    chks.forEach(chk => {
+        const row = chk.closest('.subject-row');
+        updateRowImprovement(row);
+    });
+
+    chks.forEach(chk => {
+        chk.addEventListener('change', updateSimulation);
+    });
+    
+    selects.forEach(select => {
+        select.addEventListener('change', () => {
+            const row = select.closest('.subject-row');
+            updateRowImprovement(row);
+            updateSimulation();
+        });
+    });
+});
+
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Chi tiết cảnh báo{% endblock %}
+{% block page_title %}Chi tiết cảnh báo học vụ{% endblock %}
+{% block topbar_actions %}
+{% if request.user.is_giaovu or request.user.is_admin %}
+{% if cb.trang_thai == 'chua_xu_ly' %}
+<form action="{% url 'academic_warnings:canhbao_send_email' cb.pk %}" method="post" style="display:inline-block; margin: 0;"
+    onsubmit="event.preventDefault(); const form = this; showConfirmModal('Bạn có chắc chắn muốn gửi email thông báo cảnh báo học vụ cho sinh viên này?', () => form.submit())">
+    {% csrf_token %}
+    <button type="submit" class="btn-send-notif">
+        <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="currentColor" viewBox="0 0 16 16">
+            <path
+                d="M15.964.686a.5.5 0 0 0-.65-.65L.767 5.855H.766l-.452.18a.5.5 0 0 0-.082.887l.41.26.001.002 4.995 3.178 3.178 4.995.002.002.26.41a.5.5 0 0 0 .886-.083l6-15Zm-1.833 1.89L6.637 10.07l-.215-.338a.5.5 0 0 0-.154-.154l-.338-.215 7.494-7.494 1.178-.236-.236 1.178Z" />
+        </svg>
+        Gửi thông báo
+    </button>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="form-card" style="max-width:600px">
+    <div class="warning-banner {% if cb.muc_canh_bao == 'muc3' %}danger{% endif %}">
+        <div class="warn-icon"></div>
+        <div class="warn-text">
+            <div class="warn-title">{{ cb.get_muc_canh_bao_display }}</div>
+            <div class="warn-desc">{{ cb.ly_do }}</div>
+        </div>
+    </div>
+    <table style="width:100%;font-size:14px">
+        <tr><td style="color:#000000;padding:8px 0;width:140px"><b>Sinh viên</b></td><td><strong>{{ cb.sinh_vien.mssv }} - {{ cb.sinh_vien.ho_ten }}</strong></td></tr>
+        <tr><td style="color:#000000;padding:8px 0"><b>Lớp</b></td><td><strong>{{ cb.sinh_vien.lop.ten_lop|default:'-' }}</strong></td></tr>
+        <tr><td style="color:#000000;padding:8px 0"><b>Ngành</b></td><td><strong>{{ cb.sinh_vien.nganh.ten_nganh|default:'-' }}</strong></td></tr>
+        <tr>
+            <td style="color:#000000;padding:8px 0"><b>Học kỳ</b></td>
+            <td>
+                <span class="fw-semibold" style="white-space: nowrap;">Học kỳ {{ cb.hoc_ky.ky }} ({{ cb.hoc_ky.nam_hoc }})</span>
+            </td>
+        </tr>
+        <tr>
+            <td style="color:#000000;padding:8px 0"><b>Mức cảnh báo</b></td>
+            <td>
+                {% if cb.muc_canh_bao == 'canh_bao' %}
+                <span class="badge badge-warning" style="white-space: nowrap;">Cảnh báo học vụ</span>
+                {% else %}
+                <span class="badge badge-{{ cb.mau_canh_bao }}" style="white-space: nowrap;">{{ cb.get_muc_canh_bao_display }}</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr>
+            <td style="color:#000000;padding:8px 0"><b>Trạng thái</b></td>
+            <td>
+                {% if cb.trang_thai == 'da_xu_ly' %}
+                <span class="badge badge-success" style="white-space: nowrap;">Đã thông báo</span>
+                {% else %}
+                <span class="badge badge-danger" style="white-space: nowrap;">Chưa thông báo</span>
+                {% endif %}
+            </td>
+        </tr>
+        <tr><td style="color:#000000;padding:8px 0"><b>Ngày thông báo</b></td><td>{% if cb.trang_thai == 'da_xu_ly' %}{{ cb.ngay_tao|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td></tr>
+        {% if cb.ghi_chu %}<tr><td style="color:#64748b;padding:8px 0"><b>Ghi chú</b></td><td>{{ cb.ghi_chu }}</td></tr>{% endif %}
+    </table>
+    <div class="d-flex gap-2 mt-4" style="align-items: center;">
+        <a href="{% url 'academic_warnings:canhbao_list' %}" class="btn btn-secondary">← Quay lại</a>
+    </div>
+</div>
+{% endblock %}
