@@ -725,7 +725,7 @@ def tinh_canh_bao_som(sinh_vien, hoc_ky=None, prefetch_results=None, prefetch_wa
             muc_nguy_co = 'warning_2'
             muc_nguy_co_display = 'Cảnh báo mức 2 (Buộc thôi học)'
             mau_nguy_co = 'danger'
-            ly_do = f'Đã có quyết định Buộc thôi học chính thức ở học kỳ {target_hk}.'
+            ly_do = f'Buộc thôi học ở học kỳ {target_hk}.'
         else:
             # Bị cảnh báo học vụ chính thức
             if cb_chinh_thuc.so_lan_canh_bao >= 2:

@@ -188,7 +188,7 @@ def canhbao_gui_thong_bao(request, pk):
         subject = f'[TVU] Thông báo Cảnh báo Học vụ - Học kỳ {cb.hoc_ky}'
         message = f"""Kính gửi Sinh viên {cb.sinh_vien.ho_ten},
 
-Hệ thống Quản lý Học vụ Đại học Trà Vinh xin thông báo về tình trạng học tập của sinh viên:
+Hệ thống Quản lý Học vụ Trường Kỹ thuật và Công nghệ - Đại học Trà Vinh xin thông báo về tình trạng học tập của sinh viên:
 - Họ tên: {cb.sinh_vien.ho_ten}
 - Mã số sinh viên: {cb.sinh_vien.mssv}
 - Lớp: {cb.sinh_vien.lop.ten_lop if cb.sinh_vien.lop else '-'}
@@ -199,7 +199,7 @@ Hệ thống Quản lý Học vụ Đại học Trà Vinh xin thông báo về t
 Kính đề nghị sinh viên liên hệ ngay với Cố vấn học tập để nhận tư vấn học vụ và lập kế hoạch cải thiện kết quả học tập.
 
 Trân trọng,
-Phòng Giáo vụ - Đại học Trà Vinh
+Giáo vụ Trường Kỹ thuật và Công nghệ.
 """
         try:
             send_mail(
@@ -272,7 +272,7 @@ def canhbao_gui_thong_bao_hang_loat(request):
             subject = f'[TVU] Thông báo Cảnh báo Học vụ - Học kỳ {cb.hoc_ky}'
             message = f"""Kính gửi Sinh viên {cb.sinh_vien.ho_ten},
 
-Hệ thống Quản lý Học vụ Đại học Trà Vinh xin thông báo về tình trạng học tập của sinh viên:
+Hệ thống Quản lý Học vụ Trường Kỹ thuật và Công nghệ - Đại học Trà Vinh xin thông báo về tình trạng học tập của sinh viên:
 - Họ tên: {cb.sinh_vien.ho_ten}
 - Mã số sinh viên: {cb.sinh_vien.mssv}
 - Lớp: {cb.sinh_vien.lop.ten_lop if cb.sinh_vien.lop else '-'}
@@ -283,7 +283,7 @@ Hệ thống Quản lý Học vụ Đại học Trà Vinh xin thông báo về t
 Kính đề nghị sinh viên liên hệ ngay với Cố vấn học tập để nhận tư vấn học vụ và lập kế hoạch cải thiện kết quả học tập.
 
 Trân trọng,
-Phòng Giáo vụ - Đại học Trà Vinh
+Giáo vụ Trường Kỹ thuật và Công nghệ.
 """
             try:
                 send_mail(
@@ -566,7 +566,7 @@ MỨC ĐỘ NGUY CƠ HỌC VỤ: {analysis['muc_nguy_co_display']}
 Chi tiết phân tích: {analysis['ly_do']}
 ---
 {goi_y_str}
-Chúc bạn sớm cải thiện được kết quả học tập của mình. Nếu cần thêm hỗ trợ, vui lòng chủ động đặt lịch hẹn để trao đổi thêm với Cố vấn học tập của lớp.
+Chúc bạn sớm cải thiện được kết quả học tập của mình. Nếu cần thêm hỗ trợ, vui lòng chủ động liên hệ để trao đổi thêm với Cố vấn học tập.
 
 Trân trọng,
 Giáo vụ Trường Kỹ thuật và Công nghệ

@@ -132,8 +132,8 @@ class ExcelExportTestCase(TestCase):
         headers = [ws.cell(row=header_row, column=col).value for col in range(1, 15)]
         expected_headers = [
             'MSSV', 'Họ tên', 'Lớp', 'Ngành',
-            'ĐTBCHK HK1 (Hệ 10)', 'ĐTBCHK HK1 (Hệ 4)', 'ĐTBCTL HK1 (Hệ 10)', 'ĐTBCTL HK1 (Hệ 4)', 'Cảnh báo HK1',
-            'ĐTBCHK HK2 (Hệ 10)', 'ĐTBCHK HK2 (Hệ 4)', 'ĐTBCTL HK2 (Hệ 10)', 'ĐTBCTL HK2 (Hệ 4)', 'Cảnh báo HK2'
+            'ĐTBCHK HK1 (Hệ 10)', 'ĐTBCHK HK1 (Hệ 4)', 'ĐTBCTL (Hệ 10)', 'ĐTBCTL (Hệ 4)', 'Cảnh báo HK1',
+            'ĐTBCHK HK2 (Hệ 10)', 'ĐTBCHK HK2 (Hệ 4)', 'ĐTBCTL (Hệ 10)', 'ĐTBCTL (Hệ 4)', 'Cảnh báo HK2'
         ]
         self.assertEqual(headers, expected_headers)
         

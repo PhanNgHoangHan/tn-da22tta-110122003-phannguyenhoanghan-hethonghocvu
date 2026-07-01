@@ -200,7 +200,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        const url = `${form.action || window.location.pathname}?${searchParams.toString()}`;
+        let actionUrl = form.getAttribute('action') || window.location.pathname;
+        if (actionUrl.includes('?')) {
+            actionUrl = actionUrl.split('?')[0];
+        }
+        const url = `${actionUrl}?${searchParams.toString()}`;
 
         // Update URL bar dynamically
         window.history.replaceState(null, '', url);

@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard Cố vấn học tập{% endblock %}
-{% block page_title %}Dashboard Cố vấn học tập{% endblock %}
+{% block page_title %}Trang chủ{% endblock %}
 {% block content %}
 
 <!-- Tầng 5: Báo cáo CVHT - Thống kê Cảnh báo sớm của lớp quản lý -->
@@ -86,7 +86,7 @@
     <div class="card">
         <div class="card-header">
             <span class="card-title">Sinh viên có nguy cơ bị cảnh báo học vụ</span>
-            <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-sm btn-secondary" style="font-size:12px; padding:3px 8px;">Xem tất cả phân tích</a>
+            <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-sm btn-secondary" style="font-size:12px; padding:3px 8px;">Xem tất cả</a>
         </div>
         <div class="card-body" style="padding:0">
             <table class="data-table">

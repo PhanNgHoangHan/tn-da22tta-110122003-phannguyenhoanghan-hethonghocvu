@@ -107,7 +107,7 @@ def dashboard_covan(request):
         latest_hk = HocKy.objects.order_by('-nam_hoc', '-ky').first()
 
     canh_baos_moi = CanhBaoHocVu.objects.filter(
-        sinh_vien__lop__covan=request.user, trang_thai='chua_xu_ly'
+        sinh_vien__lop__covan=request.user
     )
     if latest_hk:
         canh_baos_moi = canh_baos_moi.filter(hoc_ky=latest_hk)
@@ -198,14 +198,21 @@ def dashboard_covan(request):
 def dashboard_giaovu(request):
     """Dashboard dành cho giáo vụ và admin."""
     total_sv = SinhVien.objects.count()
-    # sv_canh_bao: số sinh viên đang có cảnh báo học vụ (lần 1 hoặc lần 2)
+    # sv_canh_bao: số sinh viên đang có cảnh báo học vụ (lần 1 hoặc lần 2) thuộc HK1 2025-2026
     sv_canh_bao = CanhBaoHocVu.objects.filter(
-        muc_canh_bao='canh_bao'
+        muc_canh_bao='canh_bao',
+        hoc_ky__ky='1',
+        hoc_ky__nam_hoc='2025-2026'
     ).values('sinh_vien').distinct().count()
     # sv_dang_hoc: bao gồm cả dang_hoc và canh_bao (tương thích dữ liệu cũ)
     sv_dang_hoc = SinhVien.objects.filter(trang_thai__in=['dang_hoc', 'canh_bao']).count()
     total_mon = MonHoc.objects.count()
-    total_canh_bao = CanhBaoHocVu.objects.filter(trang_thai='chua_xu_ly', muc_canh_bao='canh_bao').exclude(nguoi_dung_an=request.user).count()
+    total_canh_bao = CanhBaoHocVu.objects.filter(
+        trang_thai='chua_xu_ly',
+        muc_canh_bao='canh_bao',
+        hoc_ky__ky='1',
+        hoc_ky__nam_hoc='2025-2026'
+    ).exclude(nguoi_dung_an=request.user).count()
 
     # Thống kê cảnh báo theo học kỳ
     hockys = HocKy.objects.order_by('nam_hoc', 'ky')[:8]
@@ -218,9 +225,14 @@ def dashboard_giaovu(request):
     # Phân bố trạng thái
     tt_stats = SinhVien.objects.values('trang_thai').annotate(count=Count('id'))
 
-    # Cảnh báo mới nhất
-    canh_baos_moi = CanhBaoHocVu.objects.filter(trang_thai='chua_xu_ly').exclude(nguoi_dung_an=request.user).select_related(
-        'sinh_vien', 'hoc_ky').order_by('-ngay_tao')[:10]
+    # Cảnh báo mới nhất (chỉ hiển thị HK1 2025-2026)
+    canh_baos_moi = CanhBaoHocVu.objects.filter(
+        trang_thai='chua_xu_ly',
+        hoc_ky__ky='1',
+        hoc_ky__nam_hoc='2025-2026'
+    ).exclude(nguoi_dung_an=request.user).select_related(
+        'sinh_vien', 'hoc_ky'
+    ).order_by('-ngay_tao')[:10]
 
     # GPA trung bình theo học kỳ (tính từ dữ liệu)
     hoc_ky_hien_tai = HocKy.objects.filter(la_hien_tai=True).first()
@@ -413,8 +425,8 @@ def generate_excel_bytes(svs_queryset, hks, nam_hoc_filter, ky_filter, recipient
             headers.extend([
                 f'ĐTBCHK HK{hk.ky} (Hệ 10)',
                 f'ĐTBCHK HK{hk.ky} (Hệ 4)',
-                f'ĐTBCTL HK{hk.ky} (Hệ 10)',
-                f'ĐTBCTL HK{hk.ky} (Hệ 4)',
+                f'ĐTBCTL (Hệ 10)',
+                f'ĐTBCTL (Hệ 4)',
                 f'Cảnh báo HK{hk.ky}'
             ])
     else:
@@ -464,7 +476,7 @@ def generate_excel_bytes(svs_queryset, hks, nam_hoc_filter, ky_filter, recipient
                 dtbchk, dtbchk_4, tc_hk, _ = tinh_dtbchk(sv, hk)
                 dtbctl, dtbctl_4, tc_ctl_da_hoc, _ = tinh_dtbctl(sv, hk)
                 cb = CanhBaoHocVu.objects.filter(sinh_vien=sv, hoc_ky=hk).first()
-                cb_str = cb.get_muc_canh_bao_display() if cb else 'Không'
+                cb_str = cb.get_muc_canh_bao_display() if cb else '-'
                 
                 # Clean value formatting: display '-' if student was not active
                 val_dtbchk = dtbchk if tc_hk > 0 else '-'
@@ -495,7 +507,7 @@ def generate_excel_bytes(svs_queryset, hks, nam_hoc_filter, ky_filter, recipient
         else:
             dtbctl, dtbctl_4, _, _ = tinh_dtbctl(sv)
             cb = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao').first()
-            cb_str = cb.get_muc_canh_bao_display() if cb else 'Không'
+            cb_str = cb.get_muc_canh_bao_display() if cb else '-'
             row_data = [
                 sv.mssv, sv.ho_ten, lop_name, sv.nganh.ten_nganh if sv.nganh else '',
                 dtbctl, dtbctl_4, sv.get_trang_thai_display(), cb_str
