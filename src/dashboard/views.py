@@ -277,21 +277,46 @@ def bao_cao(request):
     if nam_hoc_filter:
         qs_kq = qs_kq.filter(hoc_ky__nam_hoc=nam_hoc_filter)
         qs_cb = qs_cb.filter(hoc_ky__nam_hoc=nam_hoc_filter)
+        try:
+            start_year = int(nam_hoc_filter.split('-')[0].strip())
+            qs_sv = qs_sv.filter(Q(khoa__lte=str(start_year)) | Q(khoa__isnull=True) | Q(khoa=''))
+            qs_kq = qs_kq.filter(Q(sinh_vien__khoa__lte=str(start_year)) | Q(sinh_vien__khoa__isnull=True) | Q(sinh_vien__khoa=''))
+            qs_cb = qs_cb.filter(Q(sinh_vien__khoa__lte=str(start_year)) | Q(sinh_vien__khoa__isnull=True) | Q(sinh_vien__khoa=''))
+        except ValueError:
+            pass
 
     if ky_filter:
         qs_kq = qs_kq.filter(hoc_ky__ky=ky_filter)
         qs_cb = qs_cb.filter(hoc_ky__ky=ky_filter)
 
+    # Dynamic status calculation
+    active_count = 0
+    status_counts = {}
+    for sv in qs_sv:
+        status = sv.trang_thai
+        if nam_hoc_filter:
+            try:
+                start_year = int(nam_hoc_filter.split('-')[0].strip())
+                if sv.khoa and sv.khoa.isdigit():
+                    if status in ['tot_nghiep', 'thoi_hoc', 'dinh_chi'] and int(sv.khoa) + 4 > start_year:
+                        status = 'dang_hoc'
+            except Exception:
+                pass
+        if status in ['dang_hoc', 'canh_bao']:
+            active_count += 1
+        status_counts[status] = status_counts.get(status, 0) + 1
+    tt_stats = [{'trang_thai': k, 'count': v} for k, v in status_counts.items()]
+
     # Thống kê tổng hợp
     stats = {
         'total_sv': qs_sv.count(),
         # sv_dang_hoc: bao gồm cả dang_hoc và canh_bao (tương thích dữ liệu cũ)
-        'sv_dang_hoc': qs_sv.filter(trang_thai__in=['dang_hoc', 'canh_bao']).count(),
+        'sv_dang_hoc': active_count,
         'sv_canh_bao': qs_cb.filter(muc_canh_bao='canh_bao').count(),
         'sv_canh_bao_2': qs_cb.filter(muc_canh_bao='canh_bao', so_lan_canh_bao=2).count(),
         'sv_canh_bao_3': qs_cb.filter(muc_canh_bao='buoc_thoi_hoc').count(),
         'total_kq': qs_kq.count(),
-        'kq_dat': sum(1 for kq in qs_kq if kq.diem_tk is not None and kq.diem_tk >= 4.0),
+        'kq_dat': qs_kq.filter(diem_tk__gte=4.0).count(),
     }
 
     # Biểu đồ: Cảnh báo theo lớp
@@ -333,9 +358,6 @@ def bao_cao(request):
     sv_khoa_hoc_stats = qs_sv.values('khoa').annotate(count=Count('id')).order_by('-count')[:15]
     sv_khoa_hoc_labels = [f"Khóa {item['khoa']}" if item['khoa'] else 'Chưa xác định' for item in sv_khoa_hoc_stats]
     sv_khoa_hoc_data = [item['count'] for item in sv_khoa_hoc_stats]
-
-    # Biểu đồ: Trạng thái sinh viên
-    tt_stats = qs_sv.values('trang_thai').annotate(count=Count('id'))
 
     context = {
         'nam_hocs': nam_hocs,
@@ -561,6 +583,13 @@ def export_bao_cao_excel(request):
     if request.user.is_covan:
         svs = svs.filter(covan=request.user)
 
+    if nam_hoc_filter:
+        try:
+            start_year = int(nam_hoc_filter.split('-')[0].strip())
+            svs = svs.filter(Q(khoa__lte=str(start_year)) | Q(khoa__isnull=True) | Q(khoa=''))
+        except ValueError:
+            pass
+
     if nam_hoc_filter or ky_filter:
         # Lọc những sinh viên có kết quả học tập hoặc cảnh báo trong các học kỳ này
         sv_ids = set()
@@ -610,6 +639,12 @@ def gui_bao_cao_covan(request):
     for covan in covans:
         # Lấy tất cả sinh viên thuộc lớp do cố vấn này quản lý
         svs = SinhVien.objects.filter(lop__covan=covan).select_related('nganh', 'lop')
+        if nam_hoc_filter:
+            try:
+                start_year = int(nam_hoc_filter.split('-')[0].strip())
+                svs = svs.filter(Q(khoa__lte=str(start_year)) | Q(khoa__isnull=True) | Q(khoa=''))
+            except ValueError:
+                pass
         if not svs.exists():
             continue
 

@@ -40,7 +40,6 @@ class Lop(models.Model):
 class SinhVien(models.Model):
     TRANG_THAI_CHOICES = [
         ('dang_hoc', 'Đang học'),
-        ('canh_bao', 'Cảnh báo học vụ'),
         ('dinh_chi', 'Đình chỉ'),
         ('tot_nghiep', 'Tốt nghiệp'),
         ('thoi_hoc', 'Thôi học'),

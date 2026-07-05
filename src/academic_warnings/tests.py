@@ -94,7 +94,7 @@ class EarlyWarningTestCase(TestCase):
         # View list page
         response = self.client.get(reverse('academic_warnings:canhbao_som_list'))
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Danh sách cảnh báo sớm')
+        self.assertContains(response, 'Cảnh báo sớm học vụ')
         
         # View detail page
         response = self.client.get(reverse('academic_warnings:canhbao_som_detail', args=[self.sv.mssv]))
