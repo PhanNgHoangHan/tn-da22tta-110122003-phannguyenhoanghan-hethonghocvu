@@ -595,7 +595,7 @@ Giáo vụ Trường Kỹ thuật và Công nghệ
     )
     
     if email_sent:
-        messages.success(request, f'Đã gửi email cảnh báo sớm thành công đến {sv.ho_ten} ({sv.email}).')
+        messages.success(request, f'Đã gửi email cảnh báo sớm thành công đến {sv.ho_ten}.')
     else:
         messages.warning(request, f'Đã ghi nhận lịch sử cảnh báo cho {sv.ho_ten}. Tuy nhiên, không thể gửi email thực tế do lỗi SMTP/hệ thống: {email_error}')
 

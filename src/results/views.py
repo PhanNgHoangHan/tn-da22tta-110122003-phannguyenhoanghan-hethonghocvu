@@ -310,11 +310,14 @@ def parse_hoc_ky(value):
         return None
     nam_hoc = nam_hoc_match.group()
     
-    if 'hè' in val_str or 'he' in val_str or 'hk3' in val_str or 'hk 3' in val_str or 'kỳ 3' in val_str or 'ky 3' in val_str:
+    # Loại bỏ năm học khỏi chuỗi trước khi tìm số học kỳ để tránh khớp nhầm số 2/3 trong năm học (ví dụ: 2022-2023)
+    val_str_no_year = val_str.replace(nam_hoc, '')
+    
+    if 'hè' in val_str_no_year or 'he' in val_str_no_year or 'hk3' in val_str_no_year or 'hk 3' in val_str_no_year or 'kỳ 3' in val_str_no_year or 'ky 3' in val_str_no_year:
         ky = '3'
-    elif '2' in val_str:
+    elif '2' in val_str_no_year:
         ky = '2'
-    elif '1' in val_str:
+    elif '1' in val_str_no_year:
         ky = '1'
     else:
         ky = '1'

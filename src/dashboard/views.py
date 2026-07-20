@@ -62,6 +62,12 @@ def dashboard_sinhvien(request):
 
     # Phân phối điểm
     phan_phoi = get_phan_phoi_diem(sinh_vien=sv)
+    phan_phoi_by_hk = {
+        'all': list(phan_phoi.values())
+    }
+    for hk in hockys:
+        hk_dist = get_phan_phoi_diem(sinh_vien=sv, hoc_ky=hk)
+        phan_phoi_by_hk[str(hk.id)] = list(hk_dist.values())
 
     # Cảnh báo
     canh_baos = CanhBaoHocVu.objects.filter(sinh_vien=sv).order_by('-ngay_tao')[:5]
@@ -85,6 +91,8 @@ def dashboard_sinhvien(request):
         'gpa_data': json.dumps(gpa_data),
         'phan_phoi_labels': json.dumps(list(phan_phoi.keys())),
         'phan_phoi_data': json.dumps(list(phan_phoi.values())),
+        'phan_phoi_by_hk_json': json.dumps(phan_phoi_by_hk),
+        'hockys': hockys,
     }
     return render(request, 'dashboard/dashboard_sv.html', context)
 

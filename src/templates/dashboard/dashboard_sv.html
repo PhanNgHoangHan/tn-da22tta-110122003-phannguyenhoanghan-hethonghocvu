@@ -6,7 +6,6 @@
 {% if canh_baos %}
 {% with cb=canh_baos.0 %}
 <div class="warning-banner {% if cb.muc_canh_bao == 'muc3' %}danger{% elif cb.muc_canh_bao == 'muc2' %}danger{% endif %} mb-4">
-    <div class="warn-icon">🚨</div>
     <div class="warn-text">
         <div class="warn-title">{{ cb.get_muc_canh_bao_display }} - Học kỳ {{ cb.hoc_ky }}</div>
         <div class="warn-desc">{{ cb.ly_do }} — <a href="{% url 'academic_warnings:canhbao_list' %}" style="color:inherit;text-decoration:underline">Xem chi tiết</a></div>
@@ -18,9 +17,6 @@
 <!-- TẦNG 4: CẢNH BÁO SỚM HỌC VỤ ĐẦU RA HIỂN THỊ CHO SINH VIÊN -->
 <div class="warning-banner {% if canh_bao_som.mau_nguy_co == 'danger' %}danger{% elif canh_bao_som.mau_nguy_co == 'warning' %}warning{% else %}info{% endif %} mb-4" 
      style="{% if canh_bao_som.muc_nguy_co == 'safe' %}background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-color: var(--success); border-left-width: 5px;{% endif %}">
-    <div class="warn-icon" style="font-size: 22px;">
-        {% if canh_bao_som.mau_nguy_co == 'danger' %}🚨{% elif canh_bao_som.mau_nguy_co == 'warning' %}⚠{% elif canh_bao_som.muc_nguy_co == 'safe' %}✓{% else %}💡{% endif %}
-    </div>
     <div class="warn-text">
         <div class="warn-title" style="font-weight: 700; font-size:14.5px; {% if canh_bao_som.muc_nguy_co == 'safe' %}color: #15803d;{% endif %}">
             Cảnh báo sớm học vụ: <span class="badge badge-{{ canh_bao_som.mau_nguy_co }}">{{ canh_bao_som.muc_nguy_co_display }}</span>
@@ -46,7 +42,15 @@
 
     <!-- Phân phối điểm -->
     <div class="card">
-        <div class="card-header"><span class="card-title">Phân phối điểm chữ</span></div>
+        <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 20px;">
+            <span class="card-title" style="margin: 0;">Phân phối điểm chữ</span>
+            <select id="select-hk-diem" class="form-select" style="max-width: 160px; padding: 4px 8px; font-size: 12.5px; border-radius: var(--radius-sm); border: 1px solid #cbd5e1; outline: none; background-color: #fff; cursor: pointer; color: var(--text-primary); font-weight: 500;">
+                <option value="all">Tất cả học kỳ</option>
+                {% for hk in hockys %}
+                <option value="{{ hk.id }}">Học kỳ {{ hk }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="card-body">
             <div class="chart-container" style="height:220px">
                 <canvas id="diemChart"></canvas>
@@ -54,6 +58,41 @@
         </div>
     </div>
 </div>
+
+<!-- Quy chế học vụ -->
+<div class="card mb-4" style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-left: 4px solid var(--primary);">
+    <div class="card-body" style="padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+        <div>
+            <div style="font-weight: 700; font-size: 14px; color: var(--text-primary);">Xem chi tiết quy chế học vụ tại đây:</div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">Các quy định đào tạo và học vụ chính thức của nhà trường</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <a href="/static/docs/n3.pdf" target="_blank" class="rule-link" style="display: inline-flex; align-items: center; gap: 6px; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: var(--radius-sm); color: var(--text-primary); font-weight: 600; text-decoration: none; font-size: 13px; box-shadow: var(--shadow-sm); transition: all 0.2s ease;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="text-primary" viewBox="0 0 16 16">
+                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
+                    <path d="M4.603 12.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.482-.645 19.701 19.701 0 0 0 1.062-2.227 7.269 7.269 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.187-.039.396-.12.608-.149.389-.358.858-.508 1.45a14.737 14.737 0 0 1 .665 1.95c.566-.23 1.104-.45 1.498-.562.39-.111.758-.17 1.096-.04.367.14.608.437.668.813.06.376-.08.761-.314 1.061-.312.398-.82.695-1.302.695a3.895 3.895 0 0 1-1.464-.268 29.347 29.347 0 0 1-3.234.615c-.495.278-.969.63-1.37.975-.402.345-.723.69-.974.938l-.008.008zM10.43 11.051c.36.105.698.122.915.051.24-.078.251-.184.24-.227-.013-.047-.072-.166-.376-.108-.3.057-.59.115-.779.284zm-3.902.942c.38-.198.799-.449 1.189-.691a32.167 32.167 0 0 1-1.385.12c-.22.016-.395.033-.518.067.114.156.326.357.714.504zm1.536-3.805c-.085.25-.164.498-.246.74.34-.148.694-.316 1.042-.48a10.154 10.154 0 0 0-.796-.26zM8.514 5.02c-.068.149-.074.337-.026.55.045.2.13.431.25.772.039-.241.077-.478.113-.711a2.89 2.89 0 0 0-.012-.45c-.007-.085-.02-.16-.064-.216a.178.178 0 0 0-.101-.062.223.223 0 0 0-.16.117z"/>
+                </svg>
+                Quy định công tác học vụ
+            </a>
+            <a href="/static/docs/n2.pdf" target="_blank" class="rule-link" style="display: inline-flex; align-items: center; gap: 6px; background-color: #ffffff; border: 1px solid #e2e8f0; padding: 8px 14px; border-radius: var(--radius-sm); color: var(--text-primary); font-weight: 600; text-decoration: none; font-size: 13px; box-shadow: var(--shadow-sm); transition: all 0.2s ease;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" class="text-primary" viewBox="0 0 16 16">
+                    <path d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2zM9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5v2z"/>
+                    <path d="M4.603 12.087a.81.81 0 0 1-.438-.42c-.195-.388-.13-.776.08-1.102.198-.307.526-.568.897-.787a7.68 7.68 0 0 1 1.482-.645 19.701 19.701 0 0 0 1.062-2.227 7.269 7.269 0 0 1-.43-1.295c-.086-.4-.119-.796-.046-1.136.075-.354.274-.672.65-.823.192-.077.4-.12.602-.077a.7.7 0 0 1 .477.365c.088.164.12.356.127.538.007.187-.039.396-.12.608-.149.389-.358.858-.508 1.45a14.737 14.737 0 0 1 .665 1.95c.566-.23 1.104-.45 1.498-.562.39-.111.758-.17 1.096-.04.367.14.608.437.668.813.06.376-.08.761-.314 1.061-.312.398-.82.695-1.302.695a3.895 3.895 0 0 1-1.464-.268 29.347 29.347 0 0 1-3.234.615c-.495.278-.969.63-1.37.975-.402.345-.723.69-.974.938l-.008.008zM10.43 11.051c.36.105.698.122.915.051.24-.078.251-.184.24-.227-.013-.047-.072-.166-.376-.108-.3.057-.59.115-.779.284zm-3.902.942c.38-.198.799-.449 1.189-.691a32.167 32.167 0 0 1-1.385.12c-.22.016-.395.033-.518.067.114.156.326.357.714.504zm1.536-3.805c-.085.25-.164.498-.246.74.34-.148.694-.316 1.042-.48a10.154 10.154 0 0 0-.796-.26zM8.514 5.02c-.068.149-.074.337-.026.55.045.2.13.431.25.772.039-.241.077-.478.113-.711a2.89 2.89 0 0 0-.012-.45c-.007-.085-.02-.16-.064-.216a.178.178 0 0 0-.101-.062.223.223 0 0 0-.16.117z"/>
+                </svg>
+                Quy chế học vụ dành cho sinh viên Trường Đại học Trà Vinh
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.rule-link:hover {
+    border-color: var(--primary) !important;
+    color: var(--primary) !important;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md) !important;
+}
+</style>
 
 <!-- Kết quả gần nhất -->
 <div class="card">
@@ -89,6 +128,7 @@ const gpaLabels = {{ gpa_labels|safe }};
 const gpaData = {{ gpa_data|safe }};
 const diemLabels = {{ phan_phoi_labels|safe }};
 const diemData = {{ phan_phoi_data|safe }};
+const phanPhoiDataMap = {{ phan_phoi_by_hk_json|safe }};
 
 // GPA Line Chart
 new Chart(document.getElementById('gpaChart'), {
@@ -119,7 +159,7 @@ new Chart(document.getElementById('gpaChart'), {
 
 // Điểm chữ Bar Chart
 const colors = ['#16a34a','#22c55e','#84cc16','#eab308','#f97316','#ef4444','#dc2626','#991b1b'];
-new Chart(document.getElementById('diemChart'), {
+const diemChart = new Chart(document.getElementById('diemChart'), {
     type: 'bar',
     data: {
         labels: diemLabels,
@@ -137,6 +177,16 @@ new Chart(document.getElementById('diemChart'), {
             y: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
             x: { grid: { display: false }, ticks: { font: { size: 11 } } }
         }
+    }
+});
+
+// Event listener for semester select dropdown to update chart data
+document.getElementById('select-hk-diem').addEventListener('change', function() {
+    const val = this.value;
+    const newData = phanPhoiDataMap[val];
+    if (newData) {
+        diemChart.data.datasets[0].data = newData;
+        diemChart.update();
     }
 });
 </script>

@@ -22,7 +22,7 @@
     {% elif request.user.is_covan %}
     <a href="{% url 'academic_warnings:canhbao_som_list' %}" class="btn btn-secondary btn-sm">Quay lại danh sách</a>
     {% else %}
-    <a href="{% url 'dashboard:index' %}" class="btn btn-secondary btn-sm">Quay lại Dashboard</a>
+    <a href="{% url 'dashboard:index' %}" class="btn btn-secondary btn-sm">Quay lại trang chủ</a>
     {% endif %}
 </div>
 {% endblock %}
